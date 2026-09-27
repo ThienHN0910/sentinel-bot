@@ -7,6 +7,7 @@ module.exports = {
     {
       name: 'sentinel-bot',
       script: 'apps/bot/dist/index.js',
+      instances: 1,
       node_args: '--max-old-space-size=400',
       env: {
         NODE_ENV: 'production'

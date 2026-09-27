@@ -11,7 +11,7 @@
  *  7. Start ReminderService polling
  *
  * Graceful shutdown:
- *  - SIGTERM / SIGINT: disconnect voice connections, close DB, destroy Discord client
+ *  - SIGTERM / SIGINT: close Fastify, disconnect voice connections, close DB, destroy Discord client
  */
 import 'dotenv/config';
 
@@ -52,6 +52,9 @@ const client = new Client({
   ]
 });
 
+// ── Fastify server (module-scoped so shutdown() can close it) ────────────────
+let server: Awaited<ReturnType<typeof buildFastifyServer>>;
+
 // ── Governor ─────────────────────────────────────────────────────────────────
 const governor = new GovernorManager();
 
@@ -59,17 +62,25 @@ const governor = new GovernorManager();
 async function shutdown(signal: string): Promise<void> {
   console.log(`[Bootstrap] Received ${signal} — shutting down gracefully...`);
 
-  // 1. Stop reminder polling
+  // 1. Close Fastify (drains in-flight HTTP requests)
+  try {
+    await server.close();
+    console.log('[Bootstrap] Fastify server closed.');
+  } catch (err) {
+    console.error('[Bootstrap] Error closing Fastify server:', err);
+  }
+
+  // 2. Stop reminder polling
   ReminderService.stopPolling();
 
-  // 2. Stop the governor worker
+  // 3. Stop the governor worker
   governor.stop();
 
-  // 3. Destroy Discord client (disconnects all voice channels)
+  // 4. Destroy Discord client (disconnects all voice channels)
   client.destroy();
   console.log('[Bootstrap] Discord client destroyed.');
 
-  // 4. Close MongoDB connection
+  // 5. Close MongoDB connection
   try {
     await mongoose.connection.close();
     console.log('[Bootstrap] MongoDB connection closed.');
@@ -95,12 +106,12 @@ async function bootstrap(): Promise<void> {
   console.log('[Bootstrap] GovernorManager started.');
 
   // 3. Fastify API
-  const server = buildFastifyServer();
+  server = buildFastifyServer();
   await server.listen({ port: PORT, host: '0.0.0.0' });
   console.log(`[Bootstrap] Fastify API listening on port ${PORT}.`);
 
   // 4. Discord event handlers
-  client.once('ready', (c) => onReady(c));
+  client.once('ready', (c) => onReady(c).catch(console.error));
   client.on('messageCreate',    (msg)              => { onMessageCreate(msg).catch(console.error); });
   client.on('voiceStateUpdate', (oldState, newState) => { onVoiceStateUpdate(oldState, newState).catch(console.error); });
   client.on('interactionCreate',(interaction)      => { onInteractionCreate(interaction).catch(console.error); });

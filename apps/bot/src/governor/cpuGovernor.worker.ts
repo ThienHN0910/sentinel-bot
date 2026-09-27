@@ -12,10 +12,11 @@ let lastSampleTime = performance.now();
 let burnCounter = 0;
 const burnBuffer = Buffer.alloc(32);
 
-function burnCpu(durationMs: number) {
+export function burnCpu(durationMs: number): void {
   const start = performance.now();
   while (performance.now() - start < durationMs) {
-    burnBuffer.writeUInt32BE(burnCounter++, 0);
+    burnCounter = (burnCounter + 1) >>> 0;
+    burnBuffer.writeUInt32BE(burnCounter, 0);
     crypto.createHash('sha256').update(burnBuffer).digest();
   }
 }

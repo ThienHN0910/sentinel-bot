@@ -72,6 +72,15 @@ describe('Adaptive CPU Governor Math & Metrics', () => {
     const currOverflow = { idle: 900, total: 3000 };
     expect(calculateCpuPercent(prev, currOverflow)).toBe(100);
   });
+
+  it('handles 32-bit counter overflow cleanly without throwing RangeError', () => {
+    let burnCounter = 0xffffffff;
+    const burnBuffer = Buffer.alloc(32);
+    // Wrap to 0 using unsigned right shift
+    burnCounter = (burnCounter + 1) >>> 0;
+    expect(burnCounter).toBe(0);
+    expect(() => burnBuffer.writeUInt32BE(burnCounter, 0)).not.toThrow();
+  });
 });
 
 describe('GovernorManager', () => {

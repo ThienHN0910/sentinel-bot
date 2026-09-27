@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
-import { Sparkles, Activity, Users, Hash } from 'lucide-vue-next';
+import { Sparkles, Activity, Users, Hash, Mic2 } from 'lucide-vue-next';
 import { useDensityStore } from '../stores/density';
 import DensityToggle from '../components/DensityToggle.vue';
 import LeaderboardPodium from '../components/LeaderboardPodium.vue';
 import ActivityHeatmap from '../components/ActivityHeatmap.vue';
 import WordCloudSphere from '../components/WordCloudSphere.vue';
 import { getJson } from '../api';
-import { toCloudWords, toPodium, type DashboardData } from '../utils/dashboardData';
+import { formatVoiceDuration, toActivitySeries, toCloudWords, toPodium, type DashboardData } from '../utils/dashboardData';
 import { usePageSeo } from '../seo';
 
 usePageSeo('Dashboard trực tiếp | Sentinel Bot', 'Số liệu hoạt động Discord theo thời gian thực từ Sentinel Bot.', '/dashboard', false);
@@ -23,10 +23,12 @@ let requestId = 0;
 
 const podium = computed(() => toPodium(dashboard.value?.podium ?? []));
 const cloudWords = computed(() => toCloudWords(dashboard.value?.words ?? []));
+const activitySeries = computed(() => dashboard.value ? toActivitySeries(dashboard.value.activity) : null);
 const stats = computed(() => [
   { icon: Users, label: 'Members', value: dashboard.value?.stats.members.toLocaleString() ?? '—', color: 'text-cyan-400' },
   { icon: Activity, label: 'In voice', value: dashboard.value?.stats.voiceNow.toLocaleString() ?? '—', color: 'text-emerald-400' },
-  { icon: Hash, label: 'Messages tracked', value: dashboard.value?.stats.messages.toLocaleString() ?? '—', color: 'text-violet-400' }
+  { icon: Hash, label: 'Tin nhắn đã ghi nhận', value: dashboard.value?.stats.messages.toLocaleString() ?? '—', color: 'text-violet-400' },
+  { icon: Mic2, label: 'Voice từ khi ghi nhận', value: dashboard.value ? formatVoiceDuration(dashboard.value.stats.voiceTotalEstimatedSeconds) : '—', color: 'text-amber-300' }
 ]);
 
 async function refreshDashboard() {
@@ -108,7 +110,7 @@ onUnmounted(() => {
     <p v-else-if="loading" class="text-gray-400">Loading live data…</p>
     <p v-else-if="guilds.length === 0" class="text-gray-400">The bot is not connected to a Discord server yet.</p>
     <template v-else-if="dashboard">
-      <p class="text-xs text-gray-500">Updated {{ new Date(dashboard.updatedAt).toLocaleString() }} · Activity times are UTC</p>
+      <p class="text-xs text-gray-500">Cập nhật {{ new Date(dashboard.updatedAt).toLocaleString('vi-VN') }} · Biểu đồ theo giờ UTC · Thời gian voice đang tham gia là ước tính ({{ formatVoiceDuration(dashboard.stats.voiceActiveEstimatedSeconds) }})</p>
       <div :class="['grid gap-6', density.mode === 'immersive' ? 'grid-cols-1 xl:grid-cols-3' : 'grid-cols-1 xl:grid-cols-3 gap-4']">
         <div class="xl:col-span-2">
           <LeaderboardPodium v-if="podium.length" :podium="podium" title="Top chat contributors" unit="messages" />
@@ -119,7 +121,23 @@ onUnmounted(() => {
           <div v-else class="glass-panel p-6 rounded-3xl text-gray-400">No words recorded yet.</div>
         </div>
       </div>
-      <ActivityHeatmap :matrix="dashboard.activity.matrix" :days="dashboard.activity.days" />
+      <section class="glass-panel p-6 rounded-3xl" aria-labelledby="voice-top-title">
+        <h3 id="voice-top-title" class="text-lg font-bold text-white">Top voice từ khi ghi nhận</h3>
+        <p class="text-xs text-gray-400 mt-1">Gồm thời gian đã lưu và thời gian phiên đang tham gia (ước tính).</p>
+        <ol v-if="dashboard.topVoice.length" class="mt-5 space-y-3">
+          <li v-for="user in dashboard.topVoice" :key="user.userId" class="flex items-center gap-3 border-b border-white/10 pb-3 last:border-0 last:pb-0">
+            <span class="w-7 text-sm font-mono text-cyan-300">#{{ user.rank }}</span>
+            <img v-if="user.avatar" :src="user.avatar" :alt="user.username" class="w-8 h-8 rounded-full object-cover" loading="lazy" />
+            <span class="min-w-0 flex-1 truncate text-sm text-white">{{ user.username }}</span>
+            <strong class="text-sm text-amber-300">{{ formatVoiceDuration(user.score) }}</strong>
+          </li>
+        </ol>
+        <p v-else class="mt-4 text-sm text-gray-400">Chưa có thời gian voice được ghi nhận.</p>
+      </section>
+      <div v-if="activitySeries" class="grid gap-6 xl:grid-cols-2">
+        <ActivityHeatmap :matrix="activitySeries.messages" :days="dashboard.activity.days" title="Tin nhắn trong 7 ngày" description="Số tin nhắn theo giờ UTC" unit="tin nhắn" />
+        <ActivityHeatmap :matrix="activitySeries.voiceJoins" :days="dashboard.activity.days" title="Lượt vào voice trong 7 ngày" description="Số lượt vào kênh theo giờ UTC; không phải thời lượng" unit="lượt vào voice" />
+      </div>
     </template>
   </div>
 </template>

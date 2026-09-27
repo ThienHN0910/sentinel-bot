@@ -5,6 +5,9 @@ import { calculateHeatmapColor } from '../utils/heatmap';
 const props = defineProps<{
   matrix: number[][]; // 7 days x 24 hours
   days?: string[];
+  title: string;
+  description: string;
+  unit: string;
 }>();
 
 const HOUR_LABELS = ['0h', '6h', '12h', '18h', '23h'];
@@ -35,9 +38,9 @@ function getColor(val: number): string {
         </div>
         <div>
           <h3 class="text-base font-bold text-white tracking-wide">
-            Biểu đồ Hoạt động Máy chủ
+            {{ title }}
           </h3>
-          <p class="text-xs text-gray-400">24h × 7 ngày — voice &amp; chat density</p>
+          <p class="text-xs text-gray-400">{{ description }}</p>
         </div>
       </div>
       <span class="text-xs font-mono px-2.5 py-1 rounded-full bg-violet-400/10 border border-violet-400/30 text-violet-300">
@@ -74,7 +77,7 @@ function getColor(val: number): string {
             :key="hIdx"
             :style="{ backgroundColor: getColor(val) }"
             class="flex-1 h-4 rounded-sm transform-gpu transition-transform duration-150 hover:scale-125 cursor-default"
-            :title="`${days?.[dIdx] ?? dayLabels[dIdx]}, ${hIdx}h UTC: ${val} activities`"
+            :title="`${days?.[dIdx] ?? dayLabels[dIdx]}, ${hIdx}h UTC: ${val} ${unit}`"
           />
         </div>
       </div>

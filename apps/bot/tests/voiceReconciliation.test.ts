@@ -64,8 +64,7 @@ describe('startup voice reconciliation', () => {
       order.push('first-end');
     });
     const second = runVoiceKeyed('g1', 'u1', async () => { order.push('second'); });
-    await Promise.resolve();
-    expect(order).toEqual(['first-start']);
+    await vi.waitFor(() => expect(order).toEqual(['first-start']));
     release();
     await Promise.all([first, second]);
     expect(order).toEqual(['first-start', 'first-end', 'second']);

@@ -15,7 +15,8 @@
     "noEmit": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@sentinel/shared": ["../../packages/shared/src/index.ts"]
     }
   },
   "include": [
@@ -24,6 +25,7 @@
     "src/**/*.tsx",
     "src/**/*.vue",
     "tests/**/*.ts",
-    "vite.config.ts"
+    "vite.config.ts",
+    "../../packages/shared/src/**/*.ts"
   ]
 }

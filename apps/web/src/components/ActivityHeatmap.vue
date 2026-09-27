@@ -4,10 +4,11 @@ import { calculateHeatmapColor } from '../utils/heatmap';
 
 const props = defineProps<{
   matrix: number[][]; // 7 days x 24 hours
+  days?: string[];
 }>();
 
-const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const HOUR_LABELS = ['0h', '6h', '12h', '18h', '23h'];
+const dayLabels = computed(() => props.days?.map((day) => new Date(`${day}T00:00:00Z`).toLocaleDateString('en', { weekday: 'short', timeZone: 'UTC' })) ?? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']);
 
 const maxVal = computed(() => {
   let m = 0;
@@ -64,7 +65,7 @@ function getColor(val: number): string {
       >
         <!-- Day label -->
         <span class="w-8 text-right text-[10px] text-gray-500 font-mono shrink-0">
-          {{ DAY_LABELS[dIdx] }}
+          {{ dayLabels[dIdx] }}
         </span>
         <!-- Hour cells -->
         <div class="flex gap-1 flex-1">
@@ -73,7 +74,7 @@ function getColor(val: number): string {
             :key="hIdx"
             :style="{ backgroundColor: getColor(val) }"
             class="flex-1 h-4 rounded-sm transform-gpu transition-transform duration-150 hover:scale-125 cursor-default"
-            :title="`${DAY_LABELS[dIdx]}, ${hIdx}h: ${val} hoạt động`"
+            :title="`${days?.[dIdx] ?? dayLabels[dIdx]}, ${hIdx}h UTC: ${val} activities`"
           />
         </div>
       </div>

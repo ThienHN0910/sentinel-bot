@@ -5,8 +5,11 @@ import { healthRoutes } from './routes/health';
 import { leaderboardRoutes } from './routes/leaderboard';
 import { wheelRoutes } from './routes/wheel';
 import { registerWheelClient } from './websocket/wheelSocket';
+import type { Client } from 'discord.js';
+import { dashboardRoutes } from './routes/dashboard';
+import type { GovernorManager } from '../governor/GovernorManager';
 
-export function buildFastifyServer() {
+export function buildFastifyServer(client?: Client, governor?: GovernorManager) {
   const app = fastify({ logger: false });
 
   app.register(cors, {
@@ -16,8 +19,9 @@ export function buildFastifyServer() {
 
   app.register(websocket);
 
-  app.register(healthRoutes);
+  app.register((instance) => healthRoutes(instance, governor));
   app.register(leaderboardRoutes);
+  app.register((instance) => dashboardRoutes(instance, client));
   app.register(wheelRoutes);
 
   app.register(async function (fastifyInstance) {

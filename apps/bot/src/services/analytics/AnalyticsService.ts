@@ -2,6 +2,7 @@ import { Message } from 'discord.js';
 import { UserStatModel } from '../../models/UserStat';
 import { WordStatModel } from '../../models/WordStat';
 import { tokenizeMessage, extractMentions } from './textParser';
+import { recordActivity } from './activity';
 
 const chatCooldowns = new Map<string, number>();
 
@@ -13,6 +14,7 @@ export class AnalyticsService {
 
     const guildId = message.guild.id;
     const userId = message.author.id;
+    await recordActivity(guildId, 'messages');
     const imageCount = typeof (message.attachments as any)?.filter === 'function'
       ? (message.attachments as any).filter((att: any) => att.contentType?.startsWith('image/')).size
       : Array.from(message.attachments?.values() || []).filter((att: any) => att.contentType?.startsWith('image/')).length;

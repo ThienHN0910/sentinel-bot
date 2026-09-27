@@ -106,7 +106,7 @@ async function bootstrap(): Promise<void> {
   console.log('[Bootstrap] GovernorManager started.');
 
   // 3. Fastify API
-  server = buildFastifyServer();
+  server = buildFastifyServer(client, governor);
   await server.listen({ port: PORT, host: '0.0.0.0' });
   console.log(`[Bootstrap] Fastify API listening on port ${PORT}.`);
 

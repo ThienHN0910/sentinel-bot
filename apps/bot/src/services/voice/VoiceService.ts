@@ -9,6 +9,7 @@ import {
 import { UserStatModel } from '../../models/UserStat';
 import { GuildConfigModel } from '../../models/GuildConfig';
 import { getVietnameseTtsStream } from './ttsStream';
+import { recordActivity } from '../analytics/activity';
 
 export const activeVoiceSessions = new Map<string, number>(); // `${guildId}:${userId}` -> timestamp
 
@@ -31,6 +32,7 @@ export class VoiceService {
     // 1. User Joined Voice Channel
     if (!oldState.channelId && newState.channelId) {
       activeVoiceSessions.set(sessionKey, Date.now());
+      await recordActivity(guildId, 'voiceJoins');
 
       // Trigger TTS Greeting
       const config = await GuildConfigModel.findOne({ guildId });

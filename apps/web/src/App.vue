@@ -2,8 +2,23 @@
 import { useDensityStore } from './stores/density';
 import DensityToggle from './components/DensityToggle.vue';
 import { Shield, Radio } from 'lucide-vue-next';
+import { ref, onMounted, onUnmounted } from 'vue';
+import { getJson } from './api';
 
 const density = useDensityStore();
+const health = ref<{ status: string; memory: { rssMb: number } } | null>(null);
+let healthTimer: ReturnType<typeof setInterval> | undefined;
+
+async function refreshHealth() {
+  try { health.value = await getJson('/api/health'); }
+  catch { health.value = null; }
+}
+
+onMounted(() => {
+  void refreshHealth();
+  healthTimer = setInterval(() => { void refreshHealth(); }, 30_000);
+});
+onUnmounted(() => { if (healthTimer) clearInterval(healthTimer); });
 </script>
 
 <template>
@@ -38,7 +53,7 @@ const density = useDensityStore();
           <!-- Live Telemetry Status Pill -->
           <div class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 border border-white/5 text-xs text-gray-300">
             <Radio class="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-            <span>Core Governor: <strong class="text-cyan-300 font-mono">24% CPU Target</strong></span>
+            <span>API: <strong class="text-cyan-300 font-mono">{{ health?.status === 'ok' ? `Online · ${health.memory.rssMb} MB RAM` : 'Unavailable' }}</strong></span>
           </div>
 
           <!-- Density Mode Switcher -->

@@ -5,6 +5,7 @@ import { calculateVoiceRewards, VoiceService, activeVoiceSessions } from '../src
 import { getVietnameseTtsStream } from '../src/services/voice/ttsStream';
 import { GuildConfigModel } from '../src/models/GuildConfig';
 import { UserStatModel } from '../src/models/UserStat';
+import { ActivityBucketModel } from '../src/models/ActivityBucket';
 import * as discordVoice from '@discordjs/voice';
 import https from 'https';
 
@@ -104,6 +105,7 @@ describe('VoiceService.handleVoiceStateUpdate', () => {
   beforeEach(() => {
     activeVoiceSessions.clear();
     vi.restoreAllMocks();
+    vi.spyOn(ActivityBucketModel, 'updateOne').mockResolvedValue({} as any);
   });
 
   it('ignores updates triggered by bot users', async () => {

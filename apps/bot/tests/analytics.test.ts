@@ -4,6 +4,7 @@ import { AnalyticsService } from '../src/services/analytics/AnalyticsService';
 import { generateWeeklySummary, scheduleWeeklyReports } from '../src/services/analytics/WeeklyReportCron';
 import { UserStatModel } from '../src/models/UserStat';
 import { WordStatModel } from '../src/models/WordStat';
+import { ActivityBucketModel } from '../src/models/ActivityBucket';
 import { GuildConfigModel } from '../src/models/GuildConfig';
 import cron from 'node-cron';
 
@@ -59,6 +60,7 @@ describe('Text Parser & Stop-words Stripping', () => {
 describe('AnalyticsService.handleMessage', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.spyOn(ActivityBucketModel, 'updateOne').mockResolvedValue({} as any);
     AnalyticsService.chatCooldowns.clear();
   });
 

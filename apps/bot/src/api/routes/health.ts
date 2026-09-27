@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
-import { governorManager } from '../../governor/GovernorManager';
+import { GovernorManager, governorManager } from '../../governor/GovernorManager';
 
-export async function healthRoutes(app: FastifyInstance) {
+export async function healthRoutes(app: FastifyInstance, governor: GovernorManager = governorManager) {
   app.get('/api/health', async () => {
     return {
       status: 'ok',
@@ -10,7 +10,7 @@ export async function healthRoutes(app: FastifyInstance) {
         rssMb: Math.round(process.memoryUsage().rss / (1024 * 1024)),
         heapUsedMb: Math.round(process.memoryUsage().heapUsed / (1024 * 1024))
       },
-      telemetry: governorManager.getTelemetry()
+      telemetry: governor.getTelemetry()
     };
   });
 }

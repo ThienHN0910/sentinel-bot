@@ -1,0 +1,80 @@
+import { UserStatModel } from '../../models/UserStat';
+
+export function calculateDailyStreak(currentStreak: number, lastDailyAt?: Date, now: Date = new Date()) {
+  if (!lastDailyAt) {
+    return { newStreak: 1, rewardCoins: 100 };
+  }
+
+  const hoursDiff = (now.getTime() - lastDailyAt.getTime()) / (1000 * 3600);
+  if (hoursDiff < 20) {
+    throw new Error('Bạn đã nhận điểm danh hôm nay rồi! Hãy quay lại sau.');
+  }
+
+  if (hoursDiff <= 48) {
+    const newStreak = Math.min(currentStreak + 1, 7);
+    const bonus = (newStreak - 1) * 10;
+    return { newStreak, rewardCoins: 100 + bonus };
+  }
+
+  // Broken streak
+  return { newStreak: 1, rewardCoins: 100 };
+}
+
+export function expForLevel(level: number): number {
+  return Math.floor(100 * Math.pow(level, 1.5));
+}
+
+export function calculateLevel(exp: number): number {
+  let level = 1;
+  while (exp >= expForLevel(level + 1)) {
+    level++;
+  }
+  return level;
+}
+
+export class LevelService {
+  public static expForLevel(level: number): number {
+    return expForLevel(level);
+  }
+
+  public static calculateLevel(exp: number): number {
+    return calculateLevel(exp);
+  }
+}
+
+export class EconomyService {
+  public static async claimDaily(guildId: string, userId: string, username?: string) {
+    const stat = await UserStatModel.findOne({ guildId, userId });
+    const { newStreak, rewardCoins } = calculateDailyStreak(stat?.dailyStreak || 0, stat?.lastDailyAt);
+
+    await UserStatModel.findOneAndUpdate(
+      { guildId, userId },
+      {
+        $inc: { dneCoins: rewardCoins },
+        $set: { dailyStreak: newStreak, lastDailyAt: new Date(), updatedAt: new Date() },
+        $setOnInsert: { username: username || stat?.username || userId }
+      },
+      { upsert: true }
+    );
+
+    return { streak: newStreak, reward: rewardCoins };
+  }
+
+  public static async transferCoins(guildId: string, fromId: string, toId: string, amount: number) {
+    if (amount <= 0) throw new Error('Số xu chuyển phải lớn hơn 0');
+
+    const sender = await UserStatModel.findOne({ guildId, userId: fromId });
+    if (!sender || sender.dneCoins < amount) {
+      throw new Error('Số dư của bạn không đủ để thực hiện giao dịch!');
+    }
+
+    await UserStatModel.findOneAndUpdate({ guildId, userId: fromId }, { $inc: { dneCoins: -amount } });
+    await UserStatModel.findOneAndUpdate({ guildId, userId: toId }, { $inc: { dneCoins: amount } }, { upsert: true });
+
+    return true;
+  }
+
+  public static async transfer(guildId: string, fromId: string, toId: string, amount: number) {
+    return this.transferCoins(guildId, fromId, toId, amount);
+  }
+}

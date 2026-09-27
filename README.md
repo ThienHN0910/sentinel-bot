@@ -114,6 +114,6 @@ API production: `https://sentinel-bot.thienhn.io.vn`. Dữ liệu có thể bằ
 
 ## Đóng góp và hỗ trợ
 
-Mở [GitHub Issue](https://github.com/ThienHN0910/sentinel-bot/issues) để báo lỗi hoặc đề xuất tính năng; kèm bước tái hiện, kết quả mong đợi và phiên bản liên quan. Đừng đăng token, URI MongoDB hoặc dữ liệu cá nhân trong issue công khai. Với pull request, chạy các lệnh kiểm tra ở trên và mô tả thay đổi cùng cách kiểm chứng.
+Mở [GitHub Issue](https://github.com/ThienHN0910/sentinel-bot/issues) để báo lỗi hoặc đề xuất tính năng; kèm bước tái hiện, kết quả mong đợi và phiên bản liên quan. Đừng đăng token, URI MongoDB hoặc dữ liệu cá nhân trong issue công khai. Với pull request, xem [hướng dẫn đóng góp](CONTRIBUTING.md); GitHub Actions sẽ chạy test, typecheck, build và kiểm tra SEO.
 
 [Điều khoản dịch vụ](https://sentinel-dashboard.thienhn.io.vn/terms) · [Chính sách quyền riêng tư](https://sentinel-dashboard.thienhn.io.vn/privacy) · [Giấy phép MIT](LICENSE)

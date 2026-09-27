@@ -1,11 +1,11 @@
 import { createRouter, createWebHistory } from 'vue-router';
-import DashboardPlaceholder from '../views/DashboardPlaceholder.vue';
+import DashboardView from '../views/DashboardView.vue';
 
 const routes = [
   {
     path: '/',
     name: 'dashboard',
-    component: DashboardPlaceholder
+    component: DashboardView
   }
 ];
 

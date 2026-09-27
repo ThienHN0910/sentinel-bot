@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { calculateHeatmapColor } from '../utils/heatmap';
 
 const props = defineProps<{
   matrix: number[][]; // 7 days x 24 hours
@@ -17,13 +18,6 @@ const maxVal = computed(() => {
   }
   return m || 1;
 });
-
-export function calculateHeatmapColor(value: number, max: number): string {
-  if (value === 0) return 'rgba(255, 255, 255, 0.05)';
-  const ratio = Math.min(value / max, 1);
-  const alpha = parseFloat((0.2 + ratio * 0.8).toFixed(2));
-  return `rgba(0, 242, 254, ${alpha})`;
-}
 
 function getColor(val: number): string {
   return calculateHeatmapColor(val, maxVal.value);

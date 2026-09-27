@@ -1,9 +1,5 @@
 import { describe, it, expect } from 'vitest';
-
-export function calculateSliceAngle(totalSlices: number): number {
-  if (totalSlices <= 0) return 0;
-  return (2 * Math.PI) / totalSlices;
-}
+import { calculateSliceAngle } from '../src/utils/wheelMath';
 
 describe('Wheel Angle Math', () => {
   it('divides circle evenly into radian slices', () => {

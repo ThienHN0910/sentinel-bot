@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted, watch } from 'vue';
 import confetti from 'canvas-confetti';
 import { useSoundEffect } from '../composables/useSoundEffect';
+import { calculateSliceAngle } from '../utils/wheelMath';
 
 export interface WheelItem {
   id: string;
@@ -29,11 +30,6 @@ const { playTick } = useSoundEffect();
 let animId: number | null = null;
 let flapperTimer: ReturnType<typeof setTimeout> | null = null;
 let lastPegIndex = -1;
-
-export function calculateSliceAngle(totalSlices: number): number {
-  if (totalSlices <= 0) return 0;
-  return (2 * Math.PI) / totalSlices;
-}
 
 function checkPegCollision(angle: number) {
   if (props.items.length === 0) return;

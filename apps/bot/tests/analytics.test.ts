@@ -235,6 +235,35 @@ describe('AnalyticsService.handleMessage', () => {
     );
   });
 
+  it('processes at most 50 accepted words while still counting the message', async () => {
+    const userWrite = vi.spyOn(UserStatModel, 'findOneAndUpdate').mockResolvedValue({} as any);
+    const bulkWrite = vi.spyOn(WordStatModel, 'bulkWrite').mockResolvedValue({} as any);
+    const message = {
+      guild: { id: 'g-long' }, author: { id: 'u1', bot: false, username: 'Alice', displayAvatarURL: () => '' },
+      content: Array.from({ length: 100 }, (_, index) => `word${index}`).join(' '), attachments: new Map()
+    } as any;
+    await AnalyticsService.handleMessage(message);
+    expect(userWrite).toHaveBeenCalledWith(expect.any(Object), expect.objectContaining({ $inc: expect.objectContaining({ totalMessages: 1 }) }), expect.any(Object));
+    const operations = bulkWrite.mock.calls[0][0] as any[];
+    expect(operations).toHaveLength(50);
+    expect(operations.at(-1).updateOne.filter.word).toBe('word49');
+  });
+
+  it('uses one update per distinct word with the matching frequency', async () => {
+    vi.spyOn(UserStatModel, 'findOneAndUpdate').mockResolvedValue({} as any);
+    const bulkWrite = vi.spyOn(WordStatModel, 'bulkWrite').mockResolvedValue({} as any);
+    await AnalyticsService.handleMessage({
+      guild: { id: 'g-repeat' }, author: { id: 'u1', bot: false, username: 'Alice', displayAvatarURL: () => '' },
+      content: 'sentinel sentinel sentinel', attachments: new Map()
+    } as any);
+    expect(bulkWrite.mock.calls[0][0]).toEqual([
+      expect.objectContaining({ updateOne: expect.objectContaining({
+        filter: { guildId: 'g-repeat', word: 'sentinel' },
+        update: expect.objectContaining({ $inc: { count: 3 } })
+      }) })
+    ]);
+  });
+
   it('skips WordStatModel.bulkWrite when there are no valid tokens', async () => {
     vi.spyOn(UserStatModel, 'findOneAndUpdate').mockResolvedValue({} as any);
     const bulkSpy = vi.spyOn(WordStatModel, 'bulkWrite').mockResolvedValue({} as any);

@@ -53,12 +53,14 @@ export class AnalyticsService {
     );
 
     // Tokenize and batch update words
-    const tokens = tokenizeMessage(message.content);
+    const tokens = tokenizeMessage(message.content).slice(0, 50);
     if (tokens.length > 0) {
-      const bulkOps = tokens.map((word) => ({
+      const frequencies = new Map<string, number>();
+      for (const word of tokens) frequencies.set(word, (frequencies.get(word) ?? 0) + 1);
+      const bulkOps = [...frequencies].map(([word, count]) => ({
         updateOne: {
           filter: { guildId, word },
-          update: { $inc: { count: 1 }, $set: { lastSeenAt: new Date() } },
+          update: { $inc: { count }, $set: { lastSeenAt: new Date() } },
           upsert: true
         }
       }));

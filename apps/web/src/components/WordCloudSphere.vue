@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue';
+import { ref, shallowRef, triggerRef, onMounted, onUnmounted, watch } from 'vue';
 
 export interface CloudWord {
   text: string;
@@ -28,15 +28,18 @@ interface Tag {
 }
 
 const containerRef = ref<HTMLDivElement | null>(null);
-const tags = ref<Tag[]>([]);
+const tags = shallowRef<Tag[]>([]);
 const hoveredIdx = ref<number | null>(null);
+const containerWidth = ref<number>(360);
+const containerHeight = ref<number>(360);
 
 let rotX = 0.003;
 let rotY = 0.006;
-let isDragging = false;
+const isDragging = ref(false);
 let lastX = 0;
 let lastY = 0;
 let animId: number | null = null;
+let resizeObserver: ResizeObserver | null = null;
 
 function distributeOnSphere(words: CloudWord[]): Tag[] {
   const n = words.length;
@@ -81,7 +84,7 @@ function applyDepth(tag: Tag) {
 }
 
 function animate() {
-  if (!isDragging) {
+  if (!isDragging.value) {
     for (const tag of tags.value) {
       rotatePoint(tag, rotX, rotY);
     }
@@ -91,18 +94,19 @@ function animate() {
   }
   // Sort by z depth for correct layering
   tags.value.sort((a, b) => a.z - b.z);
+  triggerRef(tags);
   animId = requestAnimationFrame(animate);
 }
 
 // ─── Input handlers ─────────────────────────────────────────────────────────
 function onMouseDown(e: MouseEvent) {
-  isDragging = true;
+  isDragging.value = true;
   lastX = e.clientX;
   lastY = e.clientY;
 }
 
 function onMouseMove(e: MouseEvent) {
-  if (!isDragging) return;
+  if (!isDragging.value) return;
   const dx = e.clientX - lastX;
   const dy = e.clientY - lastY;
   rotY = dx * 0.003;
@@ -116,7 +120,7 @@ function onMouseMove(e: MouseEvent) {
 }
 
 function onMouseUp() {
-  isDragging = false;
+  isDragging.value = false;
   rotX = 0.003;
   rotY = 0.006;
 }
@@ -126,11 +130,25 @@ onMounted(() => {
   animate();
 
   window.addEventListener('mouseup', onMouseUp);
+
+  if (containerRef.value) {
+    resizeObserver = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) {
+        containerWidth.value = entry.contentRect.width || 360;
+        containerHeight.value = entry.contentRect.height || 360;
+      }
+    });
+    resizeObserver.observe(containerRef.value);
+    containerWidth.value = containerRef.value.clientWidth || 360;
+    containerHeight.value = containerRef.value.clientHeight || 360;
+  }
 });
 
 onUnmounted(() => {
   if (animId !== null) cancelAnimationFrame(animId);
   window.removeEventListener('mouseup', onMouseUp);
+  resizeObserver?.disconnect();
 });
 
 watch(
@@ -142,14 +160,14 @@ watch(
 );
 
 function tagStyle(tag: Tag) {
-  const cx = (containerRef.value?.clientWidth ?? 360) / 2;
-  const cy = (containerRef.value?.clientHeight ?? 360) / 2;
+  const cx = containerWidth.value / 2;
+  const cy = containerHeight.value / 2;
   return {
     transform: `translate3d(${cx + tag.x}px, ${cy + tag.y}px, 0)`,
     opacity: tag.opacity,
     fontSize: `${tag.fontSize.toFixed(1)}px`,
     color: tag.word.color ?? '#00f2fe',
-    transition: isDragging ? 'none' : 'opacity 0.3s'
+    transition: isDragging.value ? 'none' : 'opacity 0.3s'
   };
 }
 </script>

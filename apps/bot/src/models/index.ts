@@ -4,3 +4,4 @@ export * from './WordStat';
 export * from './Reminder';
 export * from './WheelSession';
 export * from './database';
+export * from './VoiceSession';

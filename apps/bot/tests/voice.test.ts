@@ -6,6 +6,7 @@ import { getVietnameseTtsStream } from '../src/services/voice/ttsStream';
 import { GuildConfigModel } from '../src/models/GuildConfig';
 import { UserStatModel } from '../src/models/UserStat';
 import { ActivityBucketModel } from '../src/models/ActivityBucket';
+import { VoiceSessionModel } from '../src/models/VoiceSession';
 import * as discordVoice from '@discordjs/voice';
 import https from 'https';
 
@@ -106,6 +107,10 @@ describe('VoiceService.handleVoiceStateUpdate', () => {
     activeVoiceSessions.clear();
     vi.restoreAllMocks();
     vi.spyOn(ActivityBucketModel, 'updateOne').mockResolvedValue({} as any);
+    vi.spyOn(VoiceSessionModel, 'findOneAndUpdate').mockResolvedValue({} as any);
+    vi.spyOn(VoiceService, 'settleSession').mockImplementation(async (guildId, userId) => {
+      activeVoiceSessions.delete(`${guildId}:${userId}`);
+    });
   });
 
   it('ignores updates triggered by bot users', async () => {
@@ -174,8 +179,8 @@ describe('VoiceService.handleVoiceStateUpdate', () => {
     expect(playGreetingSpy).not.toHaveBeenCalled();
   });
 
-  it('calculates duration, deletes session, and persists stats when user leaves voice channel', async () => {
-    const updateSpy = vi.spyOn(UserStatModel, 'findOneAndUpdate').mockResolvedValue({} as any);
+  it('delegates a leave to durable session settlement with user identity', async () => {
+    const settleSpy = vi.spyOn(VoiceService, 'settleSession');
     const sessionKey = 'g-1:user-3';
     // Simulate joined 600 seconds (10 mins) ago
     activeVoiceSessions.set(sessionKey, Date.now() - 600 * 1000);
@@ -204,31 +209,18 @@ describe('VoiceService.handleVoiceStateUpdate', () => {
     await VoiceService.handleVoiceStateUpdate(oldState, newState);
 
     expect(activeVoiceSessions.has(sessionKey)).toBe(false);
-    expect(updateSpy).toHaveBeenCalledWith(
-      { guildId: 'g-1', userId: 'user-3' },
-      expect.objectContaining({
-        $inc: {
-          totalVoiceSeconds: expect.any(Number),
-          exp: 20,
-          dneCoins: 10
-        },
-        $set: {
-          username: 'User3',
-          avatar: 'https://cdn.discordapp.com/user3.png',
-          updatedAt: expect.any(Date)
-        }
-      }),
-      { upsert: true }
-    );
+    expect(settleSpy).toHaveBeenCalledWith('g-1', 'user-3', expect.any(Date), {
+      username: 'User3', avatar: 'https://cdn.discordapp.com/user3.png'
+    });
   });
 
-  it('does nothing when user leaves voice channel but had no tracked active session', async () => {
-    const updateSpy = vi.spyOn(UserStatModel, 'findOneAndUpdate');
+  it('checks durable storage when an unknown in-memory user leaves voice', async () => {
+    const settleSpy = vi.spyOn(VoiceService, 'settleSession');
     const oldState = { channelId: 'vc-100', id: 'user-unknown', guild: { id: 'g-1' } } as any;
     const newState = { channelId: null, id: 'user-unknown', guild: { id: 'g-1' } } as any;
 
     await VoiceService.handleVoiceStateUpdate(oldState, newState);
-    expect(updateSpy).not.toHaveBeenCalled();
+    expect(settleSpy).toHaveBeenCalledWith('g-1', 'user-unknown', expect.any(Date), expect.any(Object));
   });
 });
 

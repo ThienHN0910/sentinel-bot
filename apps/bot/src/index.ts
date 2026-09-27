@@ -27,6 +27,7 @@ import { onReady } from './events/ready.js';
 import { onMessageCreate } from './events/messageCreate.js';
 import { onVoiceStateUpdate } from './events/voiceStateUpdate.js';
 import { onInteractionCreate } from './events/interactionCreate.js';
+import { reconcileVoiceSessions, startVoiceObservation } from './services/voice/voiceReconciliation.js';
 
 // ── Validate required environment variables ──────────────────────────────────
 const REQUIRED_ENV = ['DISCORD_TOKEN', 'MONGODB_URI'] as const;
@@ -54,6 +55,8 @@ const client = new Client({
 
 // ── Fastify server (module-scoped so shutdown() can close it) ────────────────
 let server: Awaited<ReturnType<typeof buildFastifyServer>>;
+let stopVoiceObservation: (() => void) | undefined;
+let voiceRetryTimer: ReturnType<typeof setTimeout> | undefined;
 
 // ── Governor ─────────────────────────────────────────────────────────────────
 const governor = new GovernorManager();
@@ -72,6 +75,8 @@ async function shutdown(signal: string): Promise<void> {
 
   // 2. Stop reminder polling
   ReminderService.stopPolling();
+  stopVoiceObservation?.();
+  if (voiceRetryTimer) clearTimeout(voiceRetryTimer);
 
   // 3. Stop the governor worker
   governor.stop();
@@ -111,7 +116,20 @@ async function bootstrap(): Promise<void> {
   console.log(`[Bootstrap] Fastify API listening on port ${PORT}.`);
 
   // 4. Discord event handlers
-  client.once('ready', (c) => onReady(c).catch(console.error));
+  client.once('ready', (c) => {
+    const initializeVoice = async () => {
+      try {
+        await reconcileVoiceSessions(c);
+        stopVoiceObservation ??= startVoiceObservation(c);
+      } catch (error) {
+        console.error('[Voice] Startup reconciliation failed; retrying:', error);
+        voiceRetryTimer = setTimeout(() => { void initializeVoice(); }, 30_000);
+        voiceRetryTimer.unref();
+      }
+    };
+    void initializeVoice();
+    void onReady(c).catch(console.error);
+  });
   client.on('messageCreate',    (msg)              => { onMessageCreate(msg).catch(console.error); });
   client.on('voiceStateUpdate', (oldState, newState) => { onVoiceStateUpdate(oldState, newState).catch(console.error); });
   client.on('interactionCreate',(interaction)      => { onInteractionCreate(interaction).catch(console.error); });

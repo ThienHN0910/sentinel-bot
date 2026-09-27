@@ -27,5 +27,26 @@ export const commands: CommandDoc[] = [
     summary: 'Đặt DNE Coins vào một mặt xúc xắc và xem kết quả ngay sau khi quay.',
     example: '/game baucua item:cua bet:10',
     note: 'Cần đủ DNE Coins trong server. Xu là điểm trong bot, không đổi thành tiền thật.'
+  },
+  {
+    name: 'Thống kê cá nhân',
+    syntax: '/stats',
+    summary: 'Xem số tin nhắn, thời gian voice đã lưu, phiên voice hiện tại (ước tính), XP và DNE Coins của bạn.',
+    example: '/stats',
+    note: 'Bot trả lời riêng cho bạn. Số liệu bắt đầu từ khi bot quan sát hoạt động, không lấy lại lịch sử cũ.'
+  },
+  {
+    name: 'Bảng xếp hạng',
+    syntax: '/leaderboard type:<chat|voice>',
+    summary: 'Xem tối đa 10 thành viên có nhiều tin nhắn hoặc thời gian voice nhất trong server.',
+    example: '/leaderboard type:voice',
+    note: 'Thời gian voice đang tham gia được tính ước lượng cho đến khi phiên kết thúc.'
+  },
+  {
+    name: 'Trợ giúp',
+    syntax: '/help',
+    summary: 'Xem danh sách slash command bot đang đăng ký.',
+    example: '/help',
+    note: 'Danh sách trong Discord được lấy từ chính cấu hình đăng ký lệnh của bot.'
   }
 ];

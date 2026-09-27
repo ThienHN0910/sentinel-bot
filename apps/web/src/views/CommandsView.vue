@@ -5,7 +5,7 @@ import { INSTALL_URL, SUPPORT_URL, usePageSeo } from '../seo';
 
 usePageSeo(
   'Lệnh và hướng dẫn cài đặt | Sentinel Bot',
-  'Hướng dẫn thêm Sentinel Bot vào Discord và cách dùng các lệnh /random, /game wordchain, /game noitu, /game baucua hiện có.',
+  'Hướng dẫn thêm Sentinel Bot vào Discord và cách dùng /random, /game, /stats, /leaderboard, /help.',
   '/commands'
 );
 </script>
@@ -24,7 +24,7 @@ usePageSeo(
         <ol class="guide-list">
           <li>Mở <a :href="INSTALL_URL" target="_blank" rel="noopener noreferrer">liên kết cài đặt <ExternalLink :size="14" /></a> bằng tài khoản có quyền quản lý server.</li>
           <li>Chọn server và xem quyền bot yêu cầu: xem/gửi tin nhắn, nhúng liên kết, xem lịch sử tin nhắn, kết nối và nói trong voice.</li>
-          <li>Nhấn “Authorize”, hoàn tất CAPTCHA nếu Discord yêu cầu, rồi thử <code>/random</code> hoặc <code>/game</code>.</li>
+          <li>Nhấn “Authorize”, hoàn tất CAPTCHA nếu Discord yêu cầu, rồi thử <code>/help</code> hoặc <code>/stats</code>.</li>
         </ol>
         <p class="guide-note">Nếu bạn là người vận hành ứng dụng, hãy bật các gateway intent cần thiết cho bot trong Discord Developer Portal: Server Members và Message Content. Người cài bot vào server không cần làm bước này.</p>
         <a class="button-primary" :href="INSTALL_URL" target="_blank" rel="noopener noreferrer">Thêm Sentinel <ArrowUpRight :size="18" /></a>

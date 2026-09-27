@@ -4,7 +4,7 @@ import { Client, REST, Routes, SlashCommandBuilder } from 'discord.js';
  * Slash command definitions.
  * These are registered with Discord's REST API when the bot becomes ready.
  */
-const slashCommands = [
+export const slashCommands = [
   new SlashCommandBuilder()
     .setName('random')
     .setDescription('Tạo vòng quay may mắn 3D')
@@ -47,7 +47,17 @@ const slashCommands = [
         .addIntegerOption((opt) =>
           opt.setName('bet').setDescription('Số DNE Coins cược').setRequired(true).setMinValue(1)
         )
-    )
+    ),
+  new SlashCommandBuilder().setName('stats').setDescription('Xem thống kê hoạt động của bạn trong server'),
+  new SlashCommandBuilder()
+    .setName('leaderboard')
+    .setDescription('Xem bảng xếp hạng chat hoặc voice trong server')
+    .addStringOption((option) => option
+      .setName('type')
+      .setDescription('Loại bảng xếp hạng')
+      .setRequired(true)
+      .addChoices({ name: 'Chat', value: 'chat' }, { name: 'Voice', value: 'voice' })),
+  new SlashCommandBuilder().setName('help').setDescription('Xem các lệnh Sentinel đang hỗ trợ')
 ].map((cmd) => cmd.toJSON());
 
 /**

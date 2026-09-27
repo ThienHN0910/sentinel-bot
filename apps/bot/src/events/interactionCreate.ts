@@ -1,6 +1,9 @@
 import { Interaction } from 'discord.js';
 import { handleRandomWheelCommand, handleQuickSpinButton } from '../commands/random.js';
 import { handleGameCommand } from '../commands/game.js';
+import { handleStatsCommand } from '../commands/stats.js';
+import { handleLeaderboardCommand } from '../commands/leaderboard.js';
+import { handleHelpCommand } from '../commands/help.js';
 
 /**
  * interactionCreate event handler.
@@ -18,6 +21,21 @@ export async function onInteractionCreate(interaction: Interaction): Promise<voi
 
     if (commandName === 'game') {
       await handleGameCommand(interaction);
+      return;
+    }
+
+    if (commandName === 'stats') {
+      await handleStatsCommand(interaction);
+      return;
+    }
+
+    if (commandName === 'leaderboard') {
+      await handleLeaderboardCommand(interaction);
+      return;
+    }
+
+    if (commandName === 'help') {
+      await handleHelpCommand(interaction);
       return;
     }
 

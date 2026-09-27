@@ -27,9 +27,33 @@ export function buildActivityHeatmap(buckets: Pick<ActivityBucket, 'hour' | 'mes
   return { days, messagesMatrix, voiceJoinsMatrix, matrix };
 }
 
+export function createDashboardSnapshotCache<T>(ttlMs = 30_000, clock: () => number = Date.now) {
+  const entries = new Map<string, { promise?: Promise<T>; value?: T; expiresAt: number }>();
+  return {
+    get(key: string, load: () => Promise<T>): Promise<T> {
+      const current = entries.get(key);
+      if (current?.promise) return current.promise;
+      if (current && current.expiresAt > clock()) return Promise.resolve(current.value as T);
+      const entry: { promise?: Promise<T>; value?: T; expiresAt: number } = { expiresAt: 0 };
+      const promise = load().then((value) => {
+        entry.value = value;
+        entry.expiresAt = clock() + ttlMs;
+        entry.promise = undefined;
+        return value;
+      }, (error) => {
+        if (entries.get(key) === entry) entries.delete(key);
+        throw error;
+      });
+      entry.promise = promise;
+      entries.set(key, entry);
+      return promise;
+    }
+  };
+}
+
 export async function dashboardRoutes(app: FastifyInstance, client?: Client) {
   type Snapshot = Awaited<ReturnType<typeof loadSnapshot>>;
-  const snapshots = new Map<string, { expiresAt: number; promise: Promise<Snapshot> }>();
+  const snapshots = createDashboardSnapshotCache<Snapshot>();
 
   async function loadSnapshot(guildId: string, now: Date) {
     const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 6));
@@ -41,7 +65,12 @@ export async function dashboardRoutes(app: FastifyInstance, client?: Client) {
       ActivityBucketModel.find({ guildId, hour: { $gte: start } }).lean(),
       VoiceSessionModel.find({ guildId }).lean()
     ]);
-    return { topChat, topCompletedVoice, totals, words, buckets, sessions };
+    const topIds = new Set(topCompletedVoice.map((user) => user.userId));
+    const missingIds = [...new Set(sessions.map((session) => session.userId))].filter((userId) => !topIds.has(userId));
+    const activeCompletedVoice = missingIds.length
+      ? await UserStatModel.find({ guildId, userId: { $in: missingIds } }).lean()
+      : [];
+    return { topChat, topCompletedVoice, activeCompletedVoice, totals, words, buckets, sessions };
   }
 
   app.get('/api/guilds', async () => ({
@@ -54,22 +83,13 @@ export async function dashboardRoutes(app: FastifyInstance, client?: Client) {
     if (!guild) return reply.code(404).send({ error: 'Guild not found' });
 
     const now = new Date();
-    let entry = snapshots.get(guildId);
-    if (!entry || entry.expiresAt <= now.getTime()) {
-      const promise = loadSnapshot(guildId, now);
-      entry = { expiresAt: now.getTime() + 30_000, promise };
-      snapshots.set(guildId, entry);
-      void promise.catch(() => {
-        if (snapshots.get(guildId)?.promise === promise) snapshots.delete(guildId);
-      });
-    }
-    const { topChat, topCompletedVoice, totals, words, buckets, sessions } = await entry.promise;
+    const { topChat, topCompletedVoice, activeCompletedVoice, totals, words, buckets, sessions } = await snapshots.get(guildId, () => loadSnapshot(guildId, now));
     const liveSessions = (sessions as VoiceSession[]).filter((session) => guild.voiceStates.cache.has(session.userId));
     const activeByUser = new Map(liveSessions.map((session) => [session.userId, getActiveVoiceSeconds(session, now)]));
     const activeSeconds = [...activeByUser.values()].reduce((sum, duration) => sum + duration, 0);
     const completedSeconds = totals[0]?.totalVoiceSeconds ?? 0;
     const voiceUsers = new Map<string, { userId: string; username: string; avatar: string; score: number }>();
-    for (const user of topCompletedVoice) {
+    for (const user of [...topCompletedVoice, ...activeCompletedVoice]) {
       voiceUsers.set(user.userId, {
         userId: user.userId, username: user.username, avatar: user.avatar,
         score: user.totalVoiceSeconds + (activeByUser.get(user.userId) ?? 0)

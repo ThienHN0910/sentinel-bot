@@ -10,6 +10,17 @@ import { recordActivity } from '../analytics/activity';
 // Kept as a local hint for older callers; MongoDB is the source of truth.
 export const activeVoiceSessions = new Map<string, number>();
 const pendingByUser = new Map<string, Promise<void>>();
+interface PendingVoiceEvent {
+  guildId: string;
+  userId: string;
+  oldChannelId: string | null;
+  channelId: string | null;
+  sessionId: string | null;
+  observedAt: Date;
+  identity: { username: string; avatar: string };
+  state: VoiceState;
+}
+export const pendingVoiceEvents = new Map<string, PendingVoiceEvent[]>();
 
 export async function runVoiceKeyed(guildId: string, userId: string, action: () => Promise<void>): Promise<void> {
   const key = `${guildId}:${userId}`;
@@ -26,6 +37,56 @@ export async function runVoiceKeyed(guildId: string, userId: string, action: () 
 export function calculateVoiceRewards(durationSeconds: number) {
   const intervals = Math.floor(durationSeconds / 300);
   return { exp: intervals * 10, coins: intervals * 5 };
+}
+
+async function flushVoiceEventsForKey(guildId: string, userId: string): Promise<void> {
+  const key = `${guildId}:${userId}`;
+  await runVoiceKeyed(guildId, userId, async () => {
+    const events = pendingVoiceEvents.get(key);
+    while (events?.length) {
+      const event = events[0];
+      try {
+        if (event.channelId) {
+          const previous = await VoiceSessionModel.findOne({ guildId, userId });
+          if (previous?.sessionId && event.sessionId && previous.sessionId !== event.sessionId) {
+            await VoiceService.settleSession(guildId, userId, previous.lastObservedAt);
+          }
+          await VoiceService.startSession(guildId, userId, event.channelId, event.sessionId, event.observedAt);
+        } else {
+          await VoiceService.settleSession(guildId, userId, event.observedAt, event.identity);
+        }
+        events.shift();
+        if (events.length === 0) pendingVoiceEvents.delete(key);
+      } catch (error) {
+        console.error('[Voice] Lifecycle update failed; will retry:', error);
+        break;
+      }
+      if (event.channelId && !event.oldChannelId) {
+        try {
+          await recordActivity(guildId, 'voiceJoins', event.observedAt);
+          const config = await GuildConfigModel.findOne({ guildId });
+          if (config?.welcomeVoiceTts) {
+            const welcomeText = (config.welcomeMessage || 'Chào mừng {user}').replace(
+              '{user}', event.state.member?.displayName || 'thành viên'
+            );
+            void VoiceService.playGreeting(event.state, welcomeText).catch(console.error);
+          }
+        } catch (error) {
+          console.error('[Voice] Greeting or activity update failed:', error);
+        }
+      }
+    }
+  });
+}
+
+export async function retryPendingVoiceEvents(): Promise<void> {
+  const keys = [...pendingVoiceEvents.keys()];
+  for (let offset = 0; offset < keys.length; offset += 50) {
+    await Promise.all(keys.slice(offset, offset + 50).map((key) => {
+      const separator = key.indexOf(':');
+      return flushVoiceEventsForKey(key.slice(0, separator), key.slice(separator + 1));
+    }));
+  }
 }
 
 export class VoiceService {
@@ -68,31 +129,27 @@ export class VoiceService {
     }
   }
 
-  public static async handleVoiceStateUpdate(oldState: VoiceState, newState: VoiceState) {
+  public static async handleVoiceStateUpdate(oldState: VoiceState, newState: VoiceState, observedAt = new Date()) {
     const userId = newState.id || oldState.id;
     const guildId = newState.guild.id || oldState.guild.id;
     if (newState.member?.user.bot || oldState.member?.user.bot) return;
     if (oldState.channelId === newState.channelId) return;
-    await runVoiceKeyed(guildId, userId, async () => {
-      if (newState.channelId) {
-        await VoiceService.startSession(guildId, userId, newState.channelId, newState.sessionId, new Date());
-        if (!oldState.channelId) {
-          await recordActivity(guildId, 'voiceJoins');
-          const config = await GuildConfigModel.findOne({ guildId });
-          if (config?.welcomeVoiceTts) {
-            const welcomeText = (config.welcomeMessage || 'Chào mừng {user}').replace(
-              '{user}', newState.member?.displayName || 'thành viên'
-            );
-            void VoiceService.playGreeting(newState, welcomeText).catch(console.error);
-          }
-        }
-      } else if (oldState.channelId) {
-        await VoiceService.settleSession(guildId, userId, new Date(), {
-          username: oldState.member?.user.username || 'User',
-          avatar: oldState.member?.user.displayAvatarURL() || ''
-        });
-      }
+    const key = `${guildId}:${userId}`;
+    const events = pendingVoiceEvents.get(key) ?? [];
+    events.push({
+      guildId, userId,
+      oldChannelId: oldState.channelId,
+      channelId: newState.channelId,
+      sessionId: newState.sessionId,
+      observedAt,
+      identity: {
+        username: oldState.member?.user.username || newState.member?.user.username || 'User',
+        avatar: oldState.member?.user.displayAvatarURL?.() || newState.member?.user.displayAvatarURL?.() || ''
+      },
+      state: newState
     });
+    pendingVoiceEvents.set(key, events);
+    await flushVoiceEventsForKey(guildId, userId);
   }
 
   public static async playGreeting(state: VoiceState, message: string) {

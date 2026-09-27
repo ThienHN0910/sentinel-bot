@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { EventEmitter } from 'events';
 import { PassThrough, Readable } from 'stream';
-import { calculateVoiceRewards, VoiceService, activeVoiceSessions } from '../src/services/voice/VoiceService';
+import { calculateVoiceRewards, VoiceService, activeVoiceSessions, pendingVoiceEvents } from '../src/services/voice/VoiceService';
 import { getVietnameseTtsStream } from '../src/services/voice/ttsStream';
 import { GuildConfigModel } from '../src/models/GuildConfig';
 import { UserStatModel } from '../src/models/UserStat';
@@ -105,9 +105,11 @@ describe('getVietnameseTtsStream', () => {
 describe('VoiceService.handleVoiceStateUpdate', () => {
   beforeEach(() => {
     activeVoiceSessions.clear();
+    pendingVoiceEvents.clear();
     vi.restoreAllMocks();
     vi.spyOn(ActivityBucketModel, 'updateOne').mockResolvedValue({} as any);
     vi.spyOn(VoiceSessionModel, 'findOneAndUpdate').mockResolvedValue({} as any);
+    vi.spyOn(VoiceSessionModel, 'findOne').mockResolvedValue(null);
     vi.spyOn(VoiceService, 'settleSession').mockImplementation(async (guildId, userId) => {
       activeVoiceSessions.delete(`${guildId}:${userId}`);
     });

@@ -1,6 +1,6 @@
 import type { Client, VoiceState } from 'discord.js';
 import { VoiceSessionModel } from '../../models/VoiceSession';
-import { VoiceService, runVoiceKeyed } from './VoiceService';
+import { VoiceService, retryPendingVoiceEvents, runVoiceKeyed } from './VoiceService';
 
 function trackedStates(client: Client) {
   const states = new Map<string, VoiceState>();
@@ -42,6 +42,7 @@ export function startVoiceObservation(client: Client, intervalMs = 60_000): () =
     if (running) return;
     running = true;
     try {
+      await retryPendingVoiceEvents();
       const now = new Date();
       const states = [...trackedStates(client).values()];
       for (let index = 0; index < states.length; index += 100) {

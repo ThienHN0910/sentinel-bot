@@ -4,7 +4,7 @@ import { UserStatModel } from '../src/models/UserStat';
 import { WordStatModel } from '../src/models/WordStat';
 import { ActivityBucketModel } from '../src/models/ActivityBucket';
 import { VoiceSessionModel } from '../src/models/VoiceSession';
-import { buildActivityHeatmap } from '../src/api/routes/dashboard';
+import { buildActivityHeatmap, createDashboardSnapshotCache } from '../src/api/routes/dashboard';
 
 describe('live dashboard API', () => {
   const guild = { id: 'guild-1', name: 'Live Guild', memberCount: 42, voiceStates: { cache: new Map([['u1', {}]]) } };
@@ -74,6 +74,49 @@ describe('live dashboard API', () => {
     } finally {
       await emptyApp.close();
     }
+  });
+
+  it('includes completed time for an active user outside the historical top ten', async () => {
+    const voiceGuild = { id: 'voice-ranking', name: 'Voice Ranking', memberCount: 20, voiceStates: { cache: new Map([['active', { member: { user: { username: 'Active', displayAvatarURL: () => '' } } }]]) } };
+    const voiceApp = buildFastifyServer({ guilds: { cache: new Map([[voiceGuild.id, voiceGuild]]) } } as any);
+    const historical = Array.from({ length: 10 }, (_, index) => ({ userId: `u${index}`, username: `User ${index}`, avatar: '', totalVoiceSeconds: 1000 - index * 10 }));
+    vi.spyOn(UserStatModel, 'find').mockImplementation((filter: any) => filter.userId
+      ? { lean: async () => [{ userId: 'active', username: 'Active', avatar: '', totalVoiceSeconds: 990 }] } as any
+      : { sort: () => ({ limit: (count: number) => ({ lean: async () => count === 3 ? [] : historical }) }) } as any);
+    vi.spyOn(UserStatModel, 'aggregate').mockResolvedValue([{ totalMessages: 0, totalVoiceSeconds: 10_000 }] as any);
+    vi.spyOn(WordStatModel, 'find').mockReturnValue({ sort: () => ({ limit: () => ({ lean: async () => [] }) }) } as any);
+    vi.spyOn(ActivityBucketModel, 'find').mockReturnValue({ lean: async () => [] } as any);
+    vi.spyOn(VoiceSessionModel, 'find').mockReturnValue({ lean: async () => [{ userId: 'active', startedAt: new Date(Date.now() - 120_000), lastObservedAt: new Date() }] } as any);
+    await voiceApp.ready();
+    try {
+      const response = await voiceApp.inject('/api/guilds/voice-ranking/dashboard');
+      expect(response.json().topVoice[0]).toMatchObject({ userId: 'active', rank: 1 });
+      expect(response.json().topVoice[0].score).toBeGreaterThanOrEqual(1109);
+      expect(response.json().topVoice[0].score).toBeLessThanOrEqual(1110);
+    } finally {
+      await voiceApp.close();
+    }
+  });
+});
+
+describe('dashboard snapshot cache', () => {
+  it('shares a slow in-flight load and begins TTL after it resolves', async () => {
+    let currentTime = 0;
+    let resolve!: (value: number) => void;
+    const load = vi.fn(() => new Promise<number>((done) => { resolve = done; }));
+    const cache = createDashboardSnapshotCache<number>(30_000, () => currentTime);
+    const first = cache.get('guild', load);
+    currentTime = 31_000;
+    const second = cache.get('guild', load);
+    expect(load).toHaveBeenCalledTimes(1);
+    resolve(42);
+    expect(await Promise.all([first, second])).toEqual([42, 42]);
+    currentTime = 60_000;
+    expect(await cache.get('guild', load)).toBe(42);
+    expect(load).toHaveBeenCalledTimes(1);
+    currentTime = 61_001;
+    const third = cache.get('guild', () => Promise.resolve(43));
+    expect(await third).toBe(43);
   });
 });
 

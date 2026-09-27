@@ -6,3 +6,9 @@ export async function getJson<T>(path: string): Promise<T> {
   if (!response.ok) throw new Error(`API returned ${response.status}`);
   return response.json() as Promise<T>;
 }
+
+export async function postJson<T>(path: string): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, { method: 'POST', cache: 'no-store' });
+  if (!response.ok) throw new Error(`API returned ${response.status}`);
+  return response.json() as Promise<T>;
+}

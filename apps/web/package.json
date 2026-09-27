@@ -5,13 +5,15 @@
   "scripts": {
     "dev": "vite",
     "prebuild": "pnpm --filter @sentinel/shared build || true",
-    "build": "vue-tsc -b && vite build",
+    "build": "vue-tsc -b && vite-ssg build",
     "preview": "vite preview",
+    "verify:seo": "node scripts/check-static-pages.mjs",
     "test": "vitest run",
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
     "@sentinel/shared": "workspace:*",
+    "@unhead/vue": "2",
     "canvas-confetti": "^1.9.3",
     "gsap": "^3.12.5",
     "lucide-vue-next": "^0.414.0",
@@ -28,6 +30,7 @@
     "tailwindcss": "^3.4.7",
     "typescript": "^5.5.4",
     "vite": "^5.3.5",
+    "vite-ssg": "28.3.0",
     "vitest": "^2.0.5",
     "vue-tsc": "^2.0.29"
   }

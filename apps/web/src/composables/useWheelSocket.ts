@@ -1,5 +1,6 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { WheelSocketEvent } from '@sentinel/shared';
+import { API_BASE_URL } from '../api';
 
 export function useWheelSocket(
   sessionId: string,
@@ -10,7 +11,9 @@ export function useWheelSocket(
 
   onMounted(() => {
     if (typeof window === 'undefined' || typeof WebSocket === 'undefined') return;
-    const wsUrl = `${import.meta.env.VITE_WS_URL || 'ws://localhost:3000'}/ws/wheel/${sessionId}`;
+    if (!sessionId) return;
+    const wsBase = import.meta.env.VITE_WS_URL || API_BASE_URL.replace(/^http/, 'ws');
+    const wsUrl = `${wsBase.replace(/\/$/, '')}/ws/wheel/${encodeURIComponent(sessionId)}`;
     ws.value = new WebSocket(wsUrl);
 
     ws.value.onmessage = (event) => {

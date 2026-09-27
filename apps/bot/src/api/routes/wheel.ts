@@ -17,6 +17,9 @@ export async function wheelRoutes(app: FastifyInstance) {
     if (!session || !session.items || session.items.length === 0) {
       return reply.status(400).send({ error: 'Invalid session or empty items' });
     }
+    if (session.isCompleted) {
+      return reply.status(409).send({ error: 'Session already completed', winner: session.winner });
+    }
 
     const targetIndex = Math.floor(Math.random() * session.items.length);
     const winner = session.items[targetIndex].label;

@@ -152,6 +152,21 @@ describe('Fastify REST API & WebSocket Hub', () => {
     vi.useRealTimers();
   });
 
+  it('does not change the result of an already completed wheel', async () => {
+    const existing = {
+      sessionId: 'completed',
+      items: [{ id: '1', label: 'A', color: '#fff' }],
+      winner: 'A',
+      isCompleted: true,
+      save: vi.fn()
+    };
+    vi.spyOn(WheelSessionModel, 'findOne').mockResolvedValue(existing as any);
+    const res = await app.inject({ method: 'POST', url: '/api/wheel/completed/spin' });
+    expect(res.statusCode).toBe(409);
+    expect(existing.save).not.toHaveBeenCalled();
+    expect(existing.winner).toBe('A');
+  });
+
   it('manages WebSocket client registration, broadcasting, and clean disconnect', () => {
     const sessionId = 'test-room-1';
     let closeListener: (() => void) | undefined;

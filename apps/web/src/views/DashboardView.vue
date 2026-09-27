@@ -8,6 +8,9 @@ import ActivityHeatmap from '../components/ActivityHeatmap.vue';
 import WordCloudSphere from '../components/WordCloudSphere.vue';
 import { getJson } from '../api';
 import { toCloudWords, toPodium, type DashboardData } from '../utils/dashboardData';
+import { usePageSeo } from '../seo';
+
+usePageSeo('Dashboard trực tiếp | Sentinel Bot', 'Số liệu hoạt động Discord theo thời gian thực từ Sentinel Bot.', '/dashboard', false);
 
 const density = useDensityStore();
 const guilds = ref<{ id: string; name: string }[]>([]);

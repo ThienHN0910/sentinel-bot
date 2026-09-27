@@ -143,4 +143,4 @@ vite.config.ts.timestamp-*
 .vite/
 
 # Local investigation command log
-.diagnostics/commands.md
+.diagnostics/

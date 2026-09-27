@@ -144,3 +144,5 @@ vite.config.ts.timestamp-*
 
 # Local investigation command log
 .diagnostics/
+.worktrees/
+.superpowers/

@@ -7,19 +7,31 @@ let busyMs = 24; // Initial 24ms per 100ms window
 const WINDOW_MS = 100;
 
 let lastSample = sampleCpuTicks();
-let lastSampleTime = Date.now();
+let lastSampleTime = performance.now();
+
+let burnCounter = 0;
+const burnBuffer = Buffer.alloc(32);
 
 function burnCpu(durationMs: number) {
-  const start = Date.now();
-  while (Date.now() - start < durationMs) {
-    crypto.createHash('sha256').update(crypto.randomBytes(32)).digest('hex');
+  const start = performance.now();
+  while (performance.now() - start < durationMs) {
+    burnBuffer.writeUInt32BE(burnCounter++, 0);
+    crypto.createHash('sha256').update(burnBuffer).digest();
   }
 }
 
 async function loop() {
+  // Initial telemetry on startup
+  parentPort?.postMessage({
+    type: 'TELEMETRY',
+    cpuPercent: 0,
+    busyMs,
+    memoryRssMb: Math.round(process.memoryUsage().rss / (1024 * 1024))
+  });
+
   while (isRunning) {
     // 1. Feedback check every 5 seconds
-    const now = Date.now();
+    const now = performance.now();
     if (now - lastSampleTime >= 5000) {
       const currentSample = sampleCpuTicks();
       const currentCpu = calculateCpuPercent(lastSample, currentSample);

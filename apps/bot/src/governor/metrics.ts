@@ -25,7 +25,8 @@ export function calculateCpuPercent(prev: CpuTickSnapshot, curr: CpuTickSnapshot
   const idleDiff = curr.idle - prev.idle;
   if (totalDiff <= 0) return 0;
   const usedDiff = totalDiff - idleDiff;
-  return (usedDiff / totalDiff) * 100;
+  const percent = (usedDiff / totalDiff) * 100;
+  return Math.max(0, Math.min(100, percent));
 }
 
 export const calculateCpuUsage = calculateCpuPercent;

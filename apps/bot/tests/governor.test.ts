@@ -61,6 +61,17 @@ describe('Adaptive CPU Governor Math & Metrics', () => {
     const curr = { idle: 1000, total: 2000 };
     expect(calculateCpuPercent(prev, curr)).toBe(0);
   });
+
+  it('clamps CPU percent between 0 and 100 on abnormal virtualization ticks', () => {
+    const prev = { idle: 1000, total: 2000 };
+    // idleDiff (1200) > totalDiff (1000) => negative percent clamped to 0
+    const currNegative = { idle: 2200, total: 3000 };
+    expect(calculateCpuPercent(prev, currNegative)).toBe(0);
+
+    // idleDiff (-100) => usedDiff (1100) > totalDiff (1000) => clamped to 100
+    const currOverflow = { idle: 900, total: 3000 };
+    expect(calculateCpuPercent(prev, currOverflow)).toBe(100);
+  });
 });
 
 describe('GovernorManager', () => {
@@ -75,5 +86,34 @@ describe('GovernorManager', () => {
   it('stops cleanly when no worker is running', () => {
     const manager = new GovernorManager();
     expect(() => manager.stop()).not.toThrow();
+  });
+
+  it('starts worker thread, receives telemetry, and stops cleanly', async () => {
+    const manager = new GovernorManager();
+    expect(manager.getWorker()).toBeNull();
+
+    manager.start();
+    const worker = manager.getWorker();
+    expect(worker).not.toBeNull();
+
+    // Wait for the worker to send the initial telemetry message
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('Timeout waiting for telemetry')), 4000);
+      const check = setInterval(() => {
+        const telemetry = manager.getTelemetry();
+        if (telemetry.memoryRssMb > 0) {
+          clearTimeout(timeout);
+          clearInterval(check);
+          resolve();
+        }
+      }, 50);
+    });
+
+    const telemetry = manager.getTelemetry();
+    expect(telemetry.memoryRssMb).toBeGreaterThan(0);
+    expect(telemetry.busyMs).toBe(24);
+
+    manager.stop();
+    expect(manager.getWorker()).toBeNull();
   });
 });

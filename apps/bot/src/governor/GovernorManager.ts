@@ -30,9 +30,19 @@ export class GovernorManager {
       }
     }
 
+    let execArgv: string[] | undefined;
+    if (workerPath.endsWith('.ts')) {
+      try {
+        const tsxLoader = require.resolve('tsx/cjs');
+        execArgv = ['--require', tsxLoader];
+      } catch {
+        execArgv = ['--require', 'tsx/cjs'];
+      }
+    }
+
     try {
       this.worker = new Worker(workerPath, {
-        execArgv: workerPath.endsWith('.ts') ? ['--import', 'tsx'] : undefined,
+        execArgv,
       });
       this.worker.on('message', (msg) => {
         if (msg.type === 'TELEMETRY') {
@@ -64,6 +74,10 @@ export class GovernorManager {
 
   public getMetrics(): GovernorTelemetry {
     return this.latestTelemetry;
+  }
+
+  public getWorker(): Worker | null {
+    return this.worker;
   }
 }
 

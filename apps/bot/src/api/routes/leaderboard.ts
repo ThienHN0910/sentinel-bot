@@ -12,7 +12,20 @@ export async function leaderboardRoutes(app: FastifyInstance) {
       UserStatModel.find({ guildId }).sort({ level: -1, exp: -1 }).limit(10).lean()
     ]);
 
-    return { topVoice, topChat, topLevel };
+    const publicRows = (users: typeof topVoice, score: (user: typeof topVoice[number]) => number) =>
+      users.map((user, index) => ({
+        rank: index + 1,
+        userId: user.userId,
+        username: user.username,
+        avatar: user.avatar,
+        score: score(user)
+      }));
+
+    return {
+      topVoice: publicRows(topVoice, (user) => user.totalVoiceSeconds),
+      topChat: publicRows(topChat, (user) => user.totalMessages),
+      topLevel: publicRows(topLevel, (user) => user.level)
+    };
   });
 
   app.get('/api/guilds/:guildId/wordcloud', async (req) => {

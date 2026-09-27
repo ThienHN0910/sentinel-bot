@@ -34,7 +34,7 @@ describe('Fastify REST API & WebSocket Hub', () => {
   });
 
   it('GET /api/guilds/:guildId/leaderboard returns topVoice, topChat, and topLevel', async () => {
-    const mockLean = vi.fn().mockResolvedValue([{ userId: 'u1', exp: 100 }]);
+    const mockLean = vi.fn().mockResolvedValue([{ userId: 'u1', username: 'Alice', avatar: '', exp: 100, totalVoiceSeconds: 60, totalMessages: 3, dneCoins: 999 }]);
     const mockLimit = vi.fn().mockReturnValue({ lean: mockLean });
     const mockSort = vi.fn().mockReturnValue({ limit: mockLimit });
     vi.spyOn(UserStatModel, 'find').mockReturnValue({ sort: mockSort } as any);
@@ -49,6 +49,8 @@ describe('Fastify REST API & WebSocket Hub', () => {
     expect(body).toHaveProperty('topVoice');
     expect(body).toHaveProperty('topChat');
     expect(body).toHaveProperty('topLevel');
+    expect(JSON.stringify(body)).not.toContain('dneCoins');
+    expect(body.topVoice[0]).toMatchObject({ rank: 1, userId: 'u1', username: 'Alice', score: 60 });
     expect(UserStatModel.find).toHaveBeenCalledWith({ guildId: '12345' });
   });
 

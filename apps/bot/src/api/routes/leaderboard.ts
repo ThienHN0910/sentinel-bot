@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { UserStatModel } from '../../models/UserStat';
 import { WordStatModel } from '../../models/WordStat';
+import { calculateLevel } from '@sentinel/shared';
 
 export async function leaderboardRoutes(app: FastifyInstance) {
   app.get('/api/guilds/:guildId/leaderboard', async (req) => {
@@ -9,7 +10,7 @@ export async function leaderboardRoutes(app: FastifyInstance) {
     const [topVoice, topChat, topLevel] = await Promise.all([
       UserStatModel.find({ guildId }).sort({ totalVoiceSeconds: -1 }).limit(10).lean(),
       UserStatModel.find({ guildId }).sort({ totalMessages: -1 }).limit(10).lean(),
-      UserStatModel.find({ guildId }).sort({ level: -1, exp: -1 }).limit(10).lean()
+      UserStatModel.find({ guildId }).sort({ exp: -1, userId: 1 }).limit(10).lean()
     ]);
 
     const publicRows = (users: typeof topVoice, score: (user: typeof topVoice[number]) => number) =>
@@ -24,7 +25,7 @@ export async function leaderboardRoutes(app: FastifyInstance) {
     return {
       topVoice: publicRows(topVoice, (user) => user.totalVoiceSeconds),
       topChat: publicRows(topChat, (user) => user.totalMessages),
-      topLevel: publicRows(topLevel, (user) => user.level)
+      topLevel: publicRows(topLevel, (user) => calculateLevel(user.exp))
     };
   });
 

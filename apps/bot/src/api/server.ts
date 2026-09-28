@@ -7,6 +7,7 @@ import { wheelRoutes } from './routes/wheel';
 import { registerWheelClient } from './websocket/wheelSocket';
 import type { Client } from 'discord.js';
 import { dashboardRoutes } from './routes/dashboard';
+import { rankingRoutes } from './routes/rankings';
 import type { GovernorManager } from '../governor/GovernorManager';
 
 export function buildFastifyServer(client?: Client, governor?: GovernorManager) {
@@ -22,6 +23,7 @@ export function buildFastifyServer(client?: Client, governor?: GovernorManager) 
   app.register((instance) => healthRoutes(instance, governor));
   app.register(leaderboardRoutes);
   app.register((instance) => dashboardRoutes(instance, client));
+  app.register((instance) => rankingRoutes(instance, client));
   app.register(wheelRoutes);
 
   app.register(async function (fastifyInstance) {

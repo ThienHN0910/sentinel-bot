@@ -15,6 +15,23 @@ export interface IUserStat {
   updatedAt: Date;
 }
 
+export type RankingMetric = 'chat' | 'voice' | 'level';
+
+export interface RankingRow {
+  rank: number;
+  userId: string;
+  username: string;
+  avatar: string;
+  score: number;
+  level?: number;
+}
+
+export interface RankingPage {
+  rows: RankingRow[];
+  nextCursor: string | null;
+  generatedAt: string;
+}
+
 export interface IGuildConfig {
   guildId: string;
   name: string;

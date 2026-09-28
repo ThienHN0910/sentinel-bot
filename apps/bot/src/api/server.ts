@@ -11,6 +11,7 @@ import type { Client } from 'discord.js';
 import { dashboardRoutes } from './routes/dashboard';
 import { rankingRoutes } from './routes/rankings';
 import { registerAuthRoutes } from './routes/auth';
+import { registerAdminRoutes } from './routes/admin';
 import type { GovernorManager } from '../governor/GovernorManager';
 
 export function buildFastifyServer(client?: Client, governor?: GovernorManager) {
@@ -32,6 +33,7 @@ export function buildFastifyServer(client?: Client, governor?: GovernorManager) 
   app.register((instance) => dashboardRoutes(instance, client));
   app.register((instance) => rankingRoutes(instance, client));
   app.register(registerAuthRoutes);
+  app.register((instance) => registerAdminRoutes(instance, client));
   app.register(wheelRoutes);
 
   app.register(async function (fastifyInstance) {

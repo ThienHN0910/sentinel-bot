@@ -42,6 +42,19 @@ export interface IGuildConfig {
   updatedAt: Date;
 }
 
+export interface GuildSettingsInput {
+  welcomeVoiceTts?: boolean;
+  welcomeMessage?: string;
+  reportChannelId?: string | null;
+}
+
+export interface GuildSettingsResponse {
+  welcomeVoiceTts: boolean;
+  welcomeMessage: string;
+  reportChannelId: string | null;
+  channels: { id: string; name: string }[];
+}
+
 export interface IWordStat {
   guildId: string;
   word: string;

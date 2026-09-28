@@ -6,6 +6,7 @@ import { UserStatModel } from '../src/models/UserStat';
 import { WordStatModel } from '../src/models/WordStat';
 import { ActivityBucketModel } from '../src/models/ActivityBucket';
 import { GuildConfigModel } from '../src/models/GuildConfig';
+import { ReportDeliveryModel } from '../src/models/ReportDelivery';
 import cron from 'node-cron';
 
 vi.mock('node-cron', () => ({
@@ -287,8 +288,31 @@ describe('AnalyticsService.handleMessage', () => {
 });
 
 describe('WeeklyReportCron & generateWeeklySummary', () => {
+  const deliveries = new Map<string, any>();
   beforeEach(() => {
     vi.restoreAllMocks();
+    deliveries.clear();
+    vi.spyOn(ReportDeliveryModel, 'findOneAndUpdate').mockImplementation((async (filter: any, update: any) => {
+      const key = `${filter.guildId}:${filter.weekStart}`;
+      const existing = deliveries.get(key);
+      const now = filter.$or?.[0]?.leaseUntil?.$lte as Date;
+      if (existing?.status === 'sent' || (existing?.leaseUntil && existing.leaseUntil > now)) return null;
+      const record = { ...existing, guildId: filter.guildId, weekStart: filter.weekStart,
+        status: 'pending', leaseUntil: update.$set.leaseUntil, leaseOwner: update.$set.leaseOwner,
+        attempts: (existing?.attempts ?? 0) + 1 };
+      deliveries.set(key, record);
+      return record;
+    }) as any);
+    vi.spyOn(ReportDeliveryModel, 'updateOne').mockImplementation((async (filter: any, update: any) => {
+      const key = `${filter.guildId}:${filter.weekStart}`;
+      const previous = deliveries.get(key);
+      if (!previous || (filter.leaseOwner && previous.leaseOwner !== filter.leaseOwner) ||
+        (filter.status && previous.status !== filter.status)) return { modifiedCount: 0 };
+      const next = { ...previous, ...update.$set };
+      for (const field of Object.keys(update.$unset ?? {})) delete next[field];
+      deliveries.set(key, next);
+      return { modifiedCount: 1 };
+    }) as any);
   });
 
   it('generates weekly summary embed and sends to configured report channels', async () => {
@@ -324,7 +348,7 @@ describe('WeeklyReportCron & generateWeeklySummary', () => {
       }
     } as any;
 
-    await generateWeeklySummary(mockClient);
+    await generateWeeklySummary(mockClient, new Date('2026-09-28T02:00:00.000Z'));
 
     expect(mockClient.channels.fetch).toHaveBeenCalledWith('ch-report-1');
     expect(sendMock).toHaveBeenCalledWith(
@@ -334,11 +358,12 @@ describe('WeeklyReportCron & generateWeeklySummary', () => {
     );
 
     const sentEmbed = sendMock.mock.calls[0][0].embeds[0];
-    expect(sentEmbed.data.title).toBe('📊 BÁO CÁO HOẠT ĐỘNG TUẦN - SENTINEL BOT');
-    expect(sentEmbed.data.fields).toHaveLength(3);
+    expect(sentEmbed.data.title).toBe('📊 BÁO CÁO HOẠT ĐỘNG CỘNG DỒN - SENTINEL BOT');
+    expect(sentEmbed.data.title).toContain('CỘNG DỒN');
+    expect(sentEmbed.data.fields).toHaveLength(2);
     expect(sentEmbed.data.fields[0].value).toContain('VoiceChamp');
     expect(sentEmbed.data.fields[1].value).toContain('ChatChamp');
-    expect(sentEmbed.data.fields[2].value).toContain('sentinel');
+    expect(JSON.stringify(sentEmbed.data)).not.toContain('sentinel');
   });
 
   it('falls back to "Chưa có dữ liệu" when stats lists are empty', async () => {
@@ -368,12 +393,11 @@ describe('WeeklyReportCron & generateWeeklySummary', () => {
       }
     } as any;
 
-    await generateWeeklySummary(mockClient);
+    await generateWeeklySummary(mockClient, new Date('2026-09-28T02:00:00.000Z'));
 
     const sentEmbed = sendMock.mock.calls[0][0].embeds[0];
     expect(sentEmbed.data.fields[0].value).toBe('Chưa có dữ liệu');
     expect(sentEmbed.data.fields[1].value).toBe('Chưa có dữ liệu');
-    expect(sentEmbed.data.fields[2].value).toBe('Chưa có dữ liệu');
   });
 
   it('skips guilds with null reportChannelId or when channel fetch fails', async () => {
@@ -389,18 +413,79 @@ describe('WeeklyReportCron & generateWeeklySummary', () => {
     } as any;
 
     const userFindSpy = vi.spyOn(UserStatModel, 'find');
-    await generateWeeklySummary(mockClient);
+    await generateWeeklySummary(mockClient, new Date('2026-09-28T02:00:00.000Z'));
 
     expect(userFindSpy).not.toHaveBeenCalled();
   });
 
-  it('schedules weekly report cron on Monday 00:00:00 (0 0 * * 1)', () => {
+  it('schedules hourly Monday 09:00-18:00 in Vietnam time', () => {
     const mockClient = {} as any;
     scheduleWeeklyReports(mockClient);
 
     expect(cron.schedule).toHaveBeenCalledWith(
-      '0 0 * * 1',
-      expect.any(Function)
+      '0 9-18 * * 1',
+      expect.any(Function),
+      { timezone: 'Asia/Ho_Chi_Minh' }
     );
+  });
+
+  it('sends once across overlapping ticks and after a restart', async () => {
+    vi.spyOn(GuildConfigModel, 'find').mockResolvedValue([{ guildId: 'g1', reportChannelId: 'c1' }] as any);
+    vi.spyOn(UserStatModel, 'find').mockImplementation((() => ({ sort: () => ({ limit: async () => [] }) })) as any);
+    const send = vi.fn().mockResolvedValue({});
+    const client = { channels: { fetch: vi.fn().mockResolvedValue({ send }) } } as any;
+    const monday = new Date('2026-09-28T02:00:00.000Z');
+    await Promise.all([generateWeeklySummary(client, monday), generateWeeklySummary(client, monday)]);
+    await generateWeeklySummary(client, monday);
+    expect(send).toHaveBeenCalledTimes(1);
+    expect([...deliveries.values()][0]).toMatchObject({ guildId: 'g1', weekStart: '2026-09-28', status: 'sent' });
+  });
+
+  it('keeps a live send leased across the next hourly tick', async () => {
+    vi.useFakeTimers();
+    const monday = new Date('2026-09-28T02:00:00.000Z');
+    vi.setSystemTime(monday);
+    try {
+      vi.spyOn(GuildConfigModel, 'find').mockResolvedValue([{ guildId: 'g1', reportChannelId: 'c1' }] as any);
+      vi.spyOn(UserStatModel, 'find').mockImplementation((() => ({ sort: () => ({ limit: async () => [] }) })) as any);
+      let finishFirst!: () => void;
+      const send = vi.fn().mockImplementationOnce(() => new Promise<void>((resolve) => { finishFirst = resolve; })).mockResolvedValue({});
+      const client = { channels: { fetch: vi.fn().mockResolvedValue({ send }) } } as any;
+      const first = generateWeeklySummary(client, monday);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(send).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(16 * 60_000);
+      await generateWeeklySummary(client, new Date('2026-09-28T02:16:00.000Z'));
+      expect(send).toHaveBeenCalledTimes(1);
+      finishFirst();
+      await first;
+      expect([...deliveries.values()][0].status).toBe('sent');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('waits until the next hour to retry a failed send', async () => {
+    vi.spyOn(GuildConfigModel, 'find').mockResolvedValue([{ guildId: 'g1', reportChannelId: 'c1' }] as any);
+    vi.spyOn(UserStatModel, 'find').mockImplementation((() => ({ sort: () => ({ limit: async () => [] }) })) as any);
+    const send = vi.fn().mockRejectedValueOnce(new Error('Discord unavailable')).mockResolvedValue({});
+    const client = { channels: { fetch: vi.fn().mockResolvedValue({ send }) } } as any;
+    await generateWeeklySummary(client, new Date('2026-09-28T02:00:00.000Z'));
+    await generateWeeklySummary(client, new Date('2026-09-28T02:30:00.000Z'));
+    expect(send).toHaveBeenCalledTimes(1);
+    await generateWeeklySummary(client, new Date('2026-09-28T03:00:00.000Z'));
+    expect(send).toHaveBeenCalledTimes(2);
+    expect([...deliveries.values()][0].status).toBe('sent');
+  });
+
+  it('skips dates outside the Monday window and guilds without a report channel', async () => {
+    const configs = vi.spyOn(GuildConfigModel, 'find').mockResolvedValue([{ guildId: 'g1', reportChannelId: null }] as any);
+    const send = vi.fn();
+    const client = { channels: { fetch: vi.fn().mockResolvedValue({ send }) } } as any;
+    await generateWeeklySummary(client, new Date('2026-09-27T02:00:00.000Z'));
+    await generateWeeklySummary(client, new Date('2026-09-28T11:01:00.000Z'));
+    expect(configs).not.toHaveBeenCalled();
+    await generateWeeklySummary(client, new Date('2026-09-28T02:00:00.000Z'));
+    expect(send).not.toHaveBeenCalled();
   });
 });

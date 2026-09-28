@@ -113,6 +113,7 @@ onUnmounted(() => {
       <p class="text-xs text-gray-500">Cập nhật {{ new Date(dashboard.updatedAt).toLocaleString('vi-VN') }} · Biểu đồ theo giờ UTC · Thời gian voice đang tham gia là ước tính ({{ formatVoiceDuration(dashboard.stats.voiceActiveEstimatedSeconds) }})</p>
       <div :class="['grid gap-6', density.mode === 'immersive' ? 'grid-cols-1 xl:grid-cols-3' : 'grid-cols-1 xl:grid-cols-3 gap-4']">
         <div class="xl:col-span-2">
+          <router-link :to="{ path: '/dashboard/rankings', query: { guild: selectedGuildId } }" class="mb-3 inline-flex text-sm font-semibold text-cyan-300 hover:text-white">Xem tất cả bảng xếp hạng →</router-link>
           <LeaderboardPodium v-if="podium.length" :podium="podium" title="Top chat contributors" unit="messages" />
           <div v-else class="glass-panel p-6 rounded-3xl text-gray-400">No chat activity recorded yet.</div>
         </div>

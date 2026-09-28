@@ -21,5 +21,8 @@ const UserStatSchema = new Schema<UserStatDocument>({
 });
 
 UserStatSchema.index({ guildId: 1, userId: 1 }, { unique: true });
+UserStatSchema.index({ guildId: 1, totalMessages: -1, userId: 1 });
+UserStatSchema.index({ guildId: 1, totalVoiceSeconds: -1, userId: 1 });
+UserStatSchema.index({ guildId: 1, exp: -1, userId: 1 });
 
 export const UserStatModel = model<UserStatDocument>('UserStat', UserStatSchema);

@@ -22,6 +22,7 @@ import { connectDatabase } from './models/database.js';
 import { GovernorManager } from './governor/GovernorManager.js';
 import { buildFastifyServer } from './api/server.js';
 import { ReminderService } from './services/reminder/ReminderService.js';
+import { scheduleWeeklyReports } from './services/analytics/WeeklyReportCron.js';
 
 import { onReady } from './events/ready.js';
 import { onMessageCreate } from './events/messageCreate.js';
@@ -57,6 +58,7 @@ const client = new Client({
 let server: Awaited<ReturnType<typeof buildFastifyServer>>;
 let stopVoiceObservation: (() => void) | undefined;
 let voiceRetryTimer: ReturnType<typeof setTimeout> | undefined;
+let weeklyReportTask: { stop(): void } | undefined;
 
 // ── Governor ─────────────────────────────────────────────────────────────────
 const governor = new GovernorManager();
@@ -75,6 +77,7 @@ async function shutdown(signal: string): Promise<void> {
 
   // 2. Stop reminder polling
   ReminderService.stopPolling();
+  weeklyReportTask?.stop();
   stopVoiceObservation?.();
   if (voiceRetryTimer) clearTimeout(voiceRetryTimer);
 
@@ -117,6 +120,7 @@ async function bootstrap(): Promise<void> {
 
   // 4. Discord event handlers
   client.once('ready', (c) => {
+    weeklyReportTask ??= scheduleWeeklyReports(c);
     const initializeVoice = async () => {
       try {
         await reconcileVoiceSessions(c);

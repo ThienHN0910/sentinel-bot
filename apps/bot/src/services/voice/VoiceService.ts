@@ -6,6 +6,7 @@ import { VoiceSessionModel } from '../../models/VoiceSession';
 import { GuildConfigModel } from '../../models/GuildConfig';
 import { getVietnameseTtsStream } from './ttsStream';
 import { recordActivity } from '../analytics/activity';
+import { DEFAULT_GREETING } from '../settings/GuildSettingsService';
 
 // Kept as a local hint for older callers; MongoDB is the source of truth.
 export const activeVoiceSessions = new Map<string, number>();
@@ -65,8 +66,8 @@ async function flushVoiceEventsForKey(guildId: string, userId: string): Promise<
         try {
           await recordActivity(guildId, 'voiceJoins', event.observedAt);
           const config = await GuildConfigModel.findOne({ guildId });
-          if (config?.welcomeVoiceTts) {
-            const welcomeText = (config.welcomeMessage || 'Chào mừng {user}').replace(
+          if (config?.welcomeVoiceTts ?? true) {
+            const welcomeText = (config?.welcomeMessage || DEFAULT_GREETING).replace(
               '{user}', event.state.member?.displayName || 'thành viên'
             );
             void VoiceService.playGreeting(event.state, welcomeText).catch(console.error);

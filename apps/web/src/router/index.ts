@@ -5,6 +5,7 @@ import PrivacyView from '../views/PrivacyView.vue';
 import TermsView from '../views/TermsView.vue';
 import DashboardView from '../views/DashboardView.vue';
 import WheelView from '../views/WheelView.vue';
+import RankingsView from '../views/RankingsView.vue';
 
 export const routes: RouteRecordRaw[] = [
   { path: '/', name: 'home', component: LandingView },
@@ -12,5 +13,6 @@ export const routes: RouteRecordRaw[] = [
   { path: '/privacy', name: 'privacy', component: PrivacyView },
   { path: '/terms', name: 'terms', component: TermsView },
   { path: '/dashboard', name: 'dashboard', component: DashboardView },
+  { path: '/dashboard/rankings', name: 'rankings', component: RankingsView },
   { path: '/wheel', name: 'wheel', component: WheelView }
 ];

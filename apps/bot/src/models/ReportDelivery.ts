@@ -5,6 +5,7 @@ export interface ReportDelivery {
   weekStart: string;
   status: 'pending' | 'sent';
   leaseUntil?: Date;
+  leaseOwner?: string;
   sentAt?: Date;
   attempts: number;
 }
@@ -14,6 +15,7 @@ const ReportDeliverySchema = new Schema<ReportDelivery>({
   weekStart: { type: String, required: true },
   status: { type: String, required: true, enum: ['pending', 'sent'] },
   leaseUntil: { type: Date },
+  leaseOwner: { type: String },
   sentAt: { type: Date },
   attempts: { type: Number, default: 0 }
 });

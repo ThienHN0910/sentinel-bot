@@ -298,15 +298,20 @@ describe('WeeklyReportCron & generateWeeklySummary', () => {
       const now = filter.$or?.[0]?.leaseUntil?.$lte as Date;
       if (existing?.status === 'sent' || (existing?.leaseUntil && existing.leaseUntil > now)) return null;
       const record = { ...existing, guildId: filter.guildId, weekStart: filter.weekStart,
-        status: 'pending', leaseUntil: update.$set.leaseUntil, attempts: (existing?.attempts ?? 0) + 1 };
+        status: 'pending', leaseUntil: update.$set.leaseUntil, leaseOwner: update.$set.leaseOwner,
+        attempts: (existing?.attempts ?? 0) + 1 };
       deliveries.set(key, record);
       return record;
     }) as any);
     vi.spyOn(ReportDeliveryModel, 'updateOne').mockImplementation((async (filter: any, update: any) => {
       const key = `${filter.guildId}:${filter.weekStart}`;
       const previous = deliveries.get(key);
-      if (previous) deliveries.set(key, { ...previous, ...update.$set });
-      return { modifiedCount: previous ? 1 : 0 };
+      if (!previous || (filter.leaseOwner && previous.leaseOwner !== filter.leaseOwner) ||
+        (filter.status && previous.status !== filter.status)) return { modifiedCount: 0 };
+      const next = { ...previous, ...update.$set };
+      for (const field of Object.keys(update.$unset ?? {})) delete next[field];
+      deliveries.set(key, next);
+      return { modifiedCount: 1 };
     }) as any);
   });
 
@@ -434,6 +439,30 @@ describe('WeeklyReportCron & generateWeeklySummary', () => {
     await generateWeeklySummary(client, monday);
     expect(send).toHaveBeenCalledTimes(1);
     expect([...deliveries.values()][0]).toMatchObject({ guildId: 'g1', weekStart: '2026-09-28', status: 'sent' });
+  });
+
+  it('keeps a live send leased across the next hourly tick', async () => {
+    vi.useFakeTimers();
+    const monday = new Date('2026-09-28T02:00:00.000Z');
+    vi.setSystemTime(monday);
+    try {
+      vi.spyOn(GuildConfigModel, 'find').mockResolvedValue([{ guildId: 'g1', reportChannelId: 'c1' }] as any);
+      vi.spyOn(UserStatModel, 'find').mockImplementation((() => ({ sort: () => ({ limit: async () => [] }) })) as any);
+      let finishFirst!: () => void;
+      const send = vi.fn().mockImplementationOnce(() => new Promise<void>((resolve) => { finishFirst = resolve; })).mockResolvedValue({});
+      const client = { channels: { fetch: vi.fn().mockResolvedValue({ send }) } } as any;
+      const first = generateWeeklySummary(client, monday);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(send).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(16 * 60_000);
+      await generateWeeklySummary(client, new Date('2026-09-28T02:16:00.000Z'));
+      expect(send).toHaveBeenCalledTimes(1);
+      finishFirst();
+      await first;
+      expect([...deliveries.values()][0].status).toBe('sent');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('waits until the next hour to retry a failed send', async () => {

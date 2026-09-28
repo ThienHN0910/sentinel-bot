@@ -13,9 +13,10 @@ let canManage = true;
 let memberFetchFails = false;
 let config: any;
 let channelWritable = true;
+let channelVisible = true;
 const channel = {
   id: 'channel-1', guildId: 'guild-1', type: 0, name: 'reports',
-  permissionsFor: () => ({ has: () => channelWritable })
+  permissionsFor: () => ({ has: (bits: bigint[]) => channelWritable && (channelVisible || !bits.includes(1024n)) })
 };
 const guild = {
   id: 'guild-1', name: 'Test Guild', ownerId: 'owner',
@@ -28,7 +29,7 @@ const guild = {
   },
   channels: { cache: new Map([[channel.id, channel]]), fetch: vi.fn(async (id: string) => id === channel.id ? channel : null) }
 };
-const client = { guilds: { cache: new Map([[guild.id, guild]]) } } as any;
+const client = { guilds: { cache: new Map([[guild.id, guild]]), fetch: vi.fn(async () => guild) } } as any;
 
 describe('server management API', () => {
   const app = buildFastifyServer(client);
@@ -40,7 +41,7 @@ describe('server management API', () => {
   afterAll(async () => { await app.close(); vi.unstubAllEnvs(); });
   beforeEach(() => {
     vi.restoreAllMocks();
-    userId = 'manager'; canManage = true; memberFetchFails = false; channelWritable = true;
+    userId = 'manager'; canManage = true; memberFetchFails = false; channelWritable = true; channelVisible = true;
     config = { guildId: 'guild-1', name: 'Test Guild', welcomeVoiceTts: true, welcomeMessage: 'Chào {user}', reportChannelId: undefined };
     vi.spyOn(AuthSessionModel, 'findOne').mockImplementation((() => ({ lean: async () => ({
       userId, username: 'Manager', avatar: null, csrfToken: csrf,
@@ -99,6 +100,15 @@ describe('server management API', () => {
     expect((await save({ reportChannelId: 'foreign-channel' })).statusCode).toBe(400);
     channelWritable = false;
     expect((await save({ reportChannelId: 'channel-1' })).statusCode).toBe(400);
+  });
+
+  it('hides and rejects report channels without View Channel permission', async () => {
+    channelVisible = false;
+    const read = await app.inject({ url: '/api/admin/guilds/guild-1/settings', headers: authHeaders });
+    expect(read.statusCode).toBe(200);
+    expect(read.json().channels).toEqual([]);
+    const save = await app.inject({ method: 'PATCH', url: '/api/admin/guilds/guild-1/settings', headers: writeHeaders, payload: { reportChannelId: 'channel-1' } });
+    expect(save.statusCode).toBe(400);
   });
 
   it('clears the report channel and rejects writes without Origin or CSRF', async () => {

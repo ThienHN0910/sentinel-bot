@@ -87,4 +87,29 @@ describe('server management client', () => {
     expect(wrapper.get('[role="alert"]').text()).toContain('quyền');
     expect((wrapper.get('textarea[aria-label="Lời chào voice"]').element as HTMLTextAreaElement).value).toBe('Tin mới {user}');
   });
+
+  it('prevents changing server until a pending save completes', async () => {
+    let completeSave!: (response: Response) => void;
+    vi.stubGlobal('fetch', vi.fn(async (input: string, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith('/api/auth/me')) return new Response(JSON.stringify({ user: { id: 'u1', username: 'Alice' }, csrfToken: 'csrf-1' }));
+      if (url.endsWith('/api/admin/guilds')) return new Response(JSON.stringify({ guilds: [
+        { id: 'guild-1', name: 'Guild One' }, { id: 'guild-2', name: 'Guild Two' }
+      ] }));
+      if (url.endsWith('/api/admin/guilds/guild-1/settings') && init?.method === 'PATCH') {
+        return new Promise<Response>((resolve) => { completeSave = resolve; });
+      }
+      if (url.endsWith('/api/admin/guilds/guild-1/settings')) return new Response(JSON.stringify(settings));
+      if (url.endsWith('/api/admin/guilds/guild-2/settings')) return new Response(JSON.stringify({ ...settings, welcomeMessage: 'Guild Two greeting' }));
+      throw new Error(`Unexpected request ${url}`);
+    }));
+    const wrapper = await mountManage();
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+    expect((wrapper.get('select[aria-label="Server quản trị"]').element as HTMLSelectElement).disabled).toBe(true);
+    completeSave(new Response(JSON.stringify({ ...settings, welcomeMessage: 'Guild One saved' })));
+    await flushPromises();
+    expect((wrapper.get('select[aria-label="Server quản trị"]').element as HTMLSelectElement).disabled).toBe(false);
+    expect((wrapper.get('textarea[aria-label="Lời chào voice"]').element as HTMLTextAreaElement).value).toBe('Guild One saved');
+  });
 });

@@ -121,7 +121,7 @@ async function logout() {
         <p v-if="guilds.length === 0" class="text-gray-300">Không có server nào vừa cài bot vừa thuộc quyền quản lý của bạn.</p>
         <template v-else>
           <label for="admin-guild" class="block text-sm font-medium text-white">Server</label>
-          <select id="admin-guild" v-model="selectedGuildId" aria-label="Server quản trị" class="mt-2 w-full rounded-lg border border-white/20 bg-slate-900 px-3 py-2 text-white">
+          <select id="admin-guild" v-model="selectedGuildId" :disabled="saving" aria-label="Server quản trị" class="mt-2 w-full rounded-lg border border-white/20 bg-slate-900 px-3 py-2 text-white disabled:opacity-50">
             <option v-for="guild in guilds" :key="guild.id" :value="guild.id">{{ guild.name }}</option>
           </select>
           <form v-if="settings" class="mt-7 space-y-6" @submit.prevent="save">

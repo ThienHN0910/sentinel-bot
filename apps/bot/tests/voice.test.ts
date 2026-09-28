@@ -181,6 +181,17 @@ describe('VoiceService.handleVoiceStateUpdate', () => {
     expect(playGreetingSpy).not.toHaveBeenCalled();
   });
 
+  it('uses the displayed default greeting when the guild has no saved config', async () => {
+    const playGreetingSpy = vi.spyOn(VoiceService, 'playGreeting').mockResolvedValue(undefined as any);
+    vi.spyOn(GuildConfigModel, 'findOne').mockResolvedValue(null);
+    const oldState = { channelId: null, id: 'user-default', guild: { id: 'g-1' } } as any;
+    const newState = { channelId: 'vc-100', id: 'user-default', guild: { id: 'g-1' }, member: {
+      displayName: 'Lan', user: { bot: false }
+    } } as any;
+    await VoiceService.handleVoiceStateUpdate(oldState, newState);
+    expect(playGreetingSpy).toHaveBeenCalledWith(newState, 'Chào mừng Lan đã tham gia phòng thoại!');
+  });
+
   it('delegates a leave to durable session settlement with user identity', async () => {
     const settleSpy = vi.spyOn(VoiceService, 'settleSession');
     const sessionKey = 'g-1:user-3';

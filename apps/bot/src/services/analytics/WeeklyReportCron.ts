@@ -1,4 +1,5 @@
 import cron from 'node-cron';
+import { randomUUID } from 'node:crypto';
 import { Client, EmbedBuilder, type TextChannel } from 'discord.js';
 import { UserStatModel } from '../../models/UserStat';
 import { GuildConfigModel } from '../../models/GuildConfig';
@@ -6,6 +7,8 @@ import { ReportDeliveryModel } from '../../models/ReportDelivery';
 
 const REPORT_TIMEZONE = 'Asia/Ho_Chi_Minh';
 const HOUR_MS = 60 * 60 * 1000;
+const LEASE_MS = 15 * 60_000;
+const RENEW_MS = 60_000;
 
 function reportWindow(now: Date): { weekStart: string } | null {
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
@@ -18,18 +21,19 @@ function reportWindow(now: Date): { weekStart: string } | null {
   return { weekStart: `${parts.year}-${parts.month}-${parts.day}` };
 }
 
-async function claimDelivery(guildId: string, weekStart: string, now: Date): Promise<boolean> {
+async function claimDelivery(guildId: string, weekStart: string, now: Date): Promise<string | null> {
+  const leaseOwner = randomUUID();
   try {
     const record = await ReportDeliveryModel.findOneAndUpdate(
       { guildId, weekStart, status: { $ne: 'sent' }, $or: [
         { leaseUntil: { $lte: now } }, { leaseUntil: { $exists: false } }
       ] },
-      { $setOnInsert: { guildId, weekStart }, $set: { status: 'pending', leaseUntil: new Date(now.getTime() + 15 * 60_000) }, $inc: { attempts: 1 } },
+      { $setOnInsert: { guildId, weekStart }, $set: { status: 'pending', leaseUntil: new Date(now.getTime() + LEASE_MS), leaseOwner }, $inc: { attempts: 1 } },
       { upsert: true, new: true }
     );
-    return !!record;
+    return record ? leaseOwner : null;
   } catch (error) {
-    if (error && typeof error === 'object' && 'code' in error && error.code === 11000) return false;
+    if (error && typeof error === 'object' && 'code' in error && error.code === 11000) return null;
     throw error;
   }
 }
@@ -43,7 +47,14 @@ export async function generateWeeklySummary(client: Client, now = new Date()): P
     if (!config.reportChannelId) continue;
     const channel = await client.channels.fetch(config.reportChannelId).catch(() => null) as TextChannel | null;
     if (!channel || typeof channel.send !== 'function') continue;
-    if (!await claimDelivery(config.guildId, window.weekStart, now)) continue;
+    const leaseOwner = await claimDelivery(config.guildId, window.weekStart, now);
+    if (!leaseOwner) continue;
+    const ownerFilter = { guildId: config.guildId, weekStart: window.weekStart, status: 'pending', leaseOwner };
+    const renewal = setInterval(() => {
+      void ReportDeliveryModel.updateOne(ownerFilter, { $set: { leaseUntil: new Date(Date.now() + LEASE_MS) } })
+        .catch((error) => console.error(`[WeeklyReport] Lease renewal failed for guild ${config.guildId}:`, error));
+    }, RENEW_MS);
+    renewal.unref();
 
     try {
       const [topVoice, topChat] = await Promise.all([
@@ -60,16 +71,15 @@ export async function generateWeeklySummary(client: Client, now = new Date()): P
         )
         .setTimestamp(now);
       await channel.send({ embeds: [embed] });
-      await ReportDeliveryModel.updateOne(
-        { guildId: config.guildId, weekStart: window.weekStart, status: 'pending' },
-        { $set: { status: 'sent', sentAt: now }, $unset: { leaseUntil: 1 } }
-      );
+      await ReportDeliveryModel.updateOne(ownerFilter, { $set: { status: 'sent', sentAt: now }, $unset: { leaseUntil: 1, leaseOwner: 1 } });
     } catch (error) {
       await ReportDeliveryModel.updateOne(
-        { guildId: config.guildId, weekStart: window.weekStart, status: 'pending' },
-        { $set: { leaseUntil: new Date(now.getTime() + HOUR_MS) } }
+        ownerFilter,
+        { $set: { leaseUntil: new Date(now.getTime() + HOUR_MS) }, $unset: { leaseOwner: 1 } }
       );
       console.error(`[WeeklyReport] Failed for guild ${config.guildId}:`, error);
+    } finally {
+      clearInterval(renewal);
     }
   }
 }

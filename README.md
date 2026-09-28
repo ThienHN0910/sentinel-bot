@@ -2,7 +2,7 @@
 
 **Bot Discord cho cộng đồng: thống kê hoạt động, mini-game và dashboard dữ liệu trực tiếp.**
 
-[Thêm vào server](https://discord.com/oauth2/authorize?client_id=1553723429423808572&scope=bot%20applications.commands&permissions=3230720) · [Dashboard](https://sentinel-dashboard.thienhn.io.vn/dashboard) · [Hướng dẫn lệnh](https://sentinel-dashboard.thienhn.io.vn/commands) · [Trạng thái API](https://sentinel-bot.thienhn.io.vn/api/health)
+[Thêm vào server](https://discord.com/oauth2/authorize?client_id=1553723429423808572&scope=bot%20applications.commands&permissions=3230720) · [Dashboard](https://sentinel-dashboard.thienhn.io.vn/dashboard) · [Xếp hạng đầy đủ](https://sentinel-dashboard.thienhn.io.vn/dashboard/rankings) · [Quản trị server](https://sentinel-dashboard.thienhn.io.vn/dashboard/manage) · [Hướng dẫn lệnh](https://sentinel-dashboard.thienhn.io.vn/commands) · [Trạng thái API](https://sentinel-bot.thienhn.io.vn/api/health)
 
 Sentinel ghi nhận hoạt động mà bot quan sát được trong từng server Discord và hiển thị qua website. Repo chứa bot, API và frontend trong một pnpm workspace. Phiên bản hiện tại: **1.0.0**.
 
@@ -12,6 +12,9 @@ Sentinel ghi nhận hoạt động mà bot quan sát được trong từng serve
 - **Thống kê voice:** thời gian phiên đã kết thúc, thời gian phiên đang tham gia dưới dạng ước tính, lượt vào voice và bảng xếp hạng.
 - **Mini-game:** vòng quay chia sẻ giữa Discord và web, nối từ tiếng Việt, bầu cua bằng DNE Coins.
 - **Dashboard:** lấy dữ liệu từ Discord và MongoDB qua API, tự làm mới mỗi 30 giây và hỗ trợ chọn server.
+- **Xếp hạng đầy đủ:** phân trang theo tin nhắn, thời gian voice đã lưu và XP/cấp độ; dữ liệu được truy vấn trực tiếp theo server.
+- **Quản trị server:** đăng nhập Discord để chỉnh lời chào voice và kênh nhận báo cáo; chủ server hoặc người có quyền Manage Server được kiểm tra lại khi đọc và lưu.
+- **Báo cáo tuần:** gửi top chat/voice cộng dồn vào kênh đã chọn, thứ Hai lúc 09:00–18:00 giờ Việt Nam; mỗi tuần có bản ghi chống gửi trùng.
 - **Vận hành:** health endpoint, telemetry CPU/bộ nhớ, lưu phiên voice và khôi phục trạng thái sau khi bot khởi động lại.
 
 > Số liệu bắt đầu từ lúc bot quan sát được hoạt động; bot không đọc ngược lịch sử tin nhắn hoặc voice của Discord. Website công khai số liệu tổng hợp và bảng xếp hạng của server mà bot đã tham gia. Xem [Chính sách quyền riêng tư](https://sentinel-dashboard.thienhn.io.vn/privacy) để biết dữ liệu được xử lý và thời gian lưu.
@@ -58,7 +61,7 @@ pnpm install --frozen-lockfile
 pnpm --filter @sentinel/shared build
 ```
 
-Sao chép [`.env.example`](.env.example) thành `apps/bot/.env` và điền tối thiểu `DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, `MONGODB_URI`. Để liên kết vòng quay trỏ về frontend local, đặt `FRONTEND_URL=http://localhost:5173`. Với frontend, tạo `apps/web/.env`:
+Sao chép [`.env.example`](.env.example) thành `apps/bot/.env` và điền tối thiểu `DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, `MONGODB_URI`. Để bật đăng nhập quản trị, điền thêm `DISCORD_CLIENT_SECRET`, `DISCORD_REDIRECT_URI` và `SESSION_SECRET`, đồng thời đăng ký chính xác redirect URL trong Discord Developer Portal theo [hướng dẫn](docs/discord-developer-portal.md). Đặt `FRONTEND_URL=http://localhost:5173` khi chạy local. Với frontend, tạo `apps/web/.env`:
 
 ```dotenv
 VITE_API_URL=http://localhost:3000
@@ -85,7 +88,10 @@ Mở `http://localhost:5173`; API health ở `http://localhost:3000/api/health`.
 | `DISCORD_CLIENT_ID` | Bot, cần cho slash commands | Đăng ký lệnh toàn cục. |
 | `MONGODB_URI` | Bot, bắt buộc | Kết nối MongoDB. |
 | `PORT` | Bot, tùy chọn | Cổng Fastify; mặc định `3000`. |
-| `FRONTEND_URL` | Bot, tùy chọn | URL gửi trong lệnh `/random`; local mặc định `http://localhost:5173`. |
+| `FRONTEND_URL` | Bot; bắt buộc cho đăng nhập | URL web chính xác để cấu hình CORS và chuyển về sau OAuth; cũng dùng trong `/random`. |
+| `DISCORD_CLIENT_SECRET` | Bot; bắt buộc cho đăng nhập | Bí mật OAuth của ứng dụng Discord; chỉ lưu ở môi trường máy chủ. |
+| `DISCORD_REDIRECT_URI` | Bot; bắt buộc cho đăng nhập | URL callback đã đăng ký trong Discord Developer Portal. |
+| `SESSION_SECRET` | Bot; bắt buộc cho đăng nhập | Chuỗi ngẫu nhiên tối thiểu 32 byte để băm định danh phiên lưu trong MongoDB. |
 | `VITE_API_URL` | Web, tùy chọn | URL API; mặc định trỏ đến API production. |
 | `VITE_WS_URL` | Web, tùy chọn | URL WebSocket vòng quay; mặc định suy ra từ URL API. |
 
@@ -108,7 +114,10 @@ Lệnh SEO chạy sau khi build web; nó kiểm tra các trang HTML đã tạo, 
 | `GET /api/guilds` | Server mà bot đang kết nối. |
 | `GET /api/guilds/:guildId/dashboard` | Số liệu dashboard của server. |
 | `GET /api/guilds/:guildId/leaderboard` | Bảng xếp hạng đã lưu. |
+| `GET /api/guilds/:guildId/rankings` | Bảng xếp hạng phân trang theo tin nhắn, voice hoặc XP. |
 | `GET /api/guilds/:guildId/wordcloud` | Tần suất từ đã ghi nhận. |
+
+Các đường dẫn `/api/auth/*` và `/api/admin/*` phục vụ đăng nhập Discord và cấu hình riêng của server. Ghi cấu hình cần cookie phiên, Origin hợp lệ và CSRF token. Danh sách server quản trị được lấy từ các server trả về lúc đăng nhập; nếu quyền hoặc thành viên mới thay đổi, hãy đăng xuất rồi đăng nhập lại để làm mới danh sách.
 
 API production: `https://sentinel-bot.thienhn.io.vn`. Dữ liệu có thể bằng `0` khi server chưa phát sinh hoạt động được ghi nhận. Thời gian voice đang tham gia là **ước tính** cho tới khi phiên kết thúc và được lưu.
 

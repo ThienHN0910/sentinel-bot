@@ -2,7 +2,7 @@ import { ChannelType, PermissionFlagsBits, type Guild } from 'discord.js';
 import type { GuildSettingsInput, GuildSettingsResponse } from '@sentinel/shared';
 import { GuildConfigModel } from '../../models/GuildConfig';
 
-const DEFAULT_GREETING = 'Chào mừng {user} đã tham gia phòng thoại!';
+export const DEFAULT_GREETING = 'Chào mừng {user} đã tham gia phòng thoại!';
 const ALLOWED_FIELDS = new Set(['welcomeVoiceTts', 'welcomeMessage', 'reportChannelId']);
 
 export class GuildSettingsError extends Error {
@@ -14,7 +14,7 @@ function writableChannels(guild: Guild): { id: string; name: string }[] {
   if (!bot) return [];
   return [...guild.channels.cache.values()]
     .filter((channel) => channel.type === ChannelType.GuildText &&
-      channel.permissionsFor(bot)?.has([PermissionFlagsBits.SendMessages, PermissionFlagsBits.EmbedLinks]))
+      channel.permissionsFor(bot)?.has([PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.EmbedLinks]))
     .map((channel) => ({ id: channel.id, name: channel.name }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -46,7 +46,7 @@ export async function saveGuildSettings(guild: Guild, input: GuildSettingsInput)
     const channel = await guild.channels.fetch(input.reportChannelId).catch(() => null);
     const bot = guild.members.me;
     if (!channel || channel.guildId !== guild.id || channel.type !== ChannelType.GuildText || !bot ||
-      !channel.permissionsFor(bot)?.has([PermissionFlagsBits.SendMessages, PermissionFlagsBits.EmbedLinks])) {
+      !channel.permissionsFor(bot)?.has([PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.EmbedLinks])) {
       throw new GuildSettingsError('Bot cannot send embeds in that text channel');
     }
   }

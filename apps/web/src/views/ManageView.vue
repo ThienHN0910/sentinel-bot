@@ -14,7 +14,8 @@ const settings = ref<GuildSettingsResponse | null>(null);
 const welcomeVoiceTts = ref(true);
 const welcomeMessage = ref('');
 const reportChannelId = ref('');
-const loading = ref(true);
+const sessionLoading = ref(true);
+const settingsLoading = ref(false);
 const saving = ref(false);
 const error = ref('');
 const notice = ref('');
@@ -30,7 +31,7 @@ function applySettings(result: GuildSettingsResponse) {
 async function loadSettings() {
   if (!selectedGuildId.value) return;
   const current = ++requestId;
-  loading.value = true;
+  settingsLoading.value = true;
   error.value = '';
   notice.value = '';
   try {
@@ -43,7 +44,7 @@ async function loadSettings() {
       ? 'Bạn không còn quyền Manage Server trên server này.'
       : cause instanceof Error ? cause.message : 'Không thể tải cấu hình.';
   } finally {
-    if (current === requestId) loading.value = false;
+    if (current === requestId) settingsLoading.value = false;
   }
 }
 
@@ -63,7 +64,7 @@ onMounted(async () => {
     if (cause instanceof ApiError && cause.status === 401) auth.clearAuth();
     else error.value = cause instanceof Error ? cause.message : 'Không thể tải danh sách server.';
   } finally {
-    if (!selectedGuildId.value) loading.value = false;
+    sessionLoading.value = false;
   }
 });
 
@@ -106,7 +107,7 @@ async function logout() {
     </header>
 
     <section class="glass-panel max-w-3xl rounded-3xl p-6 sm:p-8" aria-label="Cấu hình server">
-      <p v-if="loading" class="text-gray-300">Đang tải cấu hình…</p>
+      <p v-if="sessionLoading" class="text-gray-300">Đang xác thực Discord…</p>
       <template v-else-if="!auth.isAuthenticated">
         <p class="mb-5 text-gray-300">Bạn cần đăng nhập để quản trị Sentinel cho server của mình.</p>
         <a :href="`${API_BASE_URL}/api/auth/discord/start`" class="inline-flex rounded-lg bg-cyan-300 px-5 py-3 font-semibold text-slate-950">Đăng nhập Discord</a>
@@ -124,26 +125,29 @@ async function logout() {
           <select id="admin-guild" v-model="selectedGuildId" :disabled="saving" aria-label="Server quản trị" class="mt-2 w-full rounded-lg border border-white/20 bg-slate-900 px-3 py-2 text-white disabled:opacity-50">
             <option v-for="guild in guilds" :key="guild.id" :value="guild.id">{{ guild.name }}</option>
           </select>
-          <form v-if="settings" class="mt-7 space-y-6" @submit.prevent="save">
-            <div class="flex items-start gap-3">
-              <input id="voice-tts" v-model="welcomeVoiceTts" type="checkbox" class="mt-1" />
-              <label for="voice-tts" class="text-sm text-white">Bật lời chào bằng giọng nói khi thành viên vào kênh voice</label>
-            </div>
-            <div>
-              <label for="voice-message" class="block text-sm font-medium text-white">Lời chào voice</label>
-              <p class="mb-2 mt-1 text-xs text-gray-400">Dùng {user} để chèn tên thành viên. Tối đa 200 ký tự.</p>
-              <textarea id="voice-message" v-model="welcomeMessage" aria-label="Lời chào voice" maxlength="200" rows="3" class="w-full rounded-lg border border-white/20 bg-slate-900 px-3 py-2 text-white" />
-            </div>
-            <div>
-              <label for="report-channel" class="block text-sm font-medium text-white">Kênh nhận báo cáo</label>
-              <p class="mb-2 mt-1 text-xs text-gray-400">Bỏ chọn để tắt. Báo cáo gửi thứ Hai lúc 09:00 giờ Việt Nam và ghi rõ số liệu cộng dồn.</p>
-              <select id="report-channel" v-model="reportChannelId" class="w-full rounded-lg border border-white/20 bg-slate-900 px-3 py-2 text-white">
-                <option value="">Tắt báo cáo</option>
-                <option v-for="channel in settings.channels" :key="channel.id" :value="channel.id">#{{ channel.name }}</option>
-              </select>
-            </div>
-            <button type="submit" aria-label="Lưu cấu hình" :disabled="saving" class="rounded-lg bg-cyan-300 px-5 py-3 font-semibold text-slate-950 disabled:opacity-50">{{ saving ? 'Đang lưu…' : 'Lưu cấu hình' }}</button>
-          </form>
+          <div class="mt-7 min-h-[430px] sm:min-h-[370px]" :aria-busy="settingsLoading">
+            <p v-if="settingsLoading" role="status" class="text-gray-300">Đang tải cấu hình…</p>
+            <form v-else-if="settings" class="space-y-6" @submit.prevent="save">
+              <div class="flex items-start gap-3">
+                <input id="voice-tts" v-model="welcomeVoiceTts" type="checkbox" class="mt-1" />
+                <label for="voice-tts" class="text-sm text-white">Bật lời chào bằng giọng nói khi thành viên vào kênh voice</label>
+              </div>
+              <div>
+                <label for="voice-message" class="block text-sm font-medium text-white">Lời chào voice</label>
+                <p class="mb-2 mt-1 text-xs text-gray-400">Dùng {user} để chèn tên thành viên. Tối đa 200 ký tự.</p>
+                <textarea id="voice-message" v-model="welcomeMessage" aria-label="Lời chào voice" maxlength="200" rows="3" class="w-full rounded-lg border border-white/20 bg-slate-900 px-3 py-2 text-white" />
+              </div>
+              <div>
+                <label for="report-channel" class="block text-sm font-medium text-white">Kênh nhận báo cáo</label>
+                <p class="mb-2 mt-1 text-xs text-gray-400">Bỏ chọn để tắt. Báo cáo gửi thứ Hai lúc 09:00 giờ Việt Nam và ghi rõ số liệu cộng dồn.</p>
+                <select id="report-channel" v-model="reportChannelId" class="w-full rounded-lg border border-white/20 bg-slate-900 px-3 py-2 text-white">
+                  <option value="">Tắt báo cáo</option>
+                  <option v-for="channel in settings.channels" :key="channel.id" :value="channel.id">#{{ channel.name }}</option>
+                </select>
+              </div>
+              <button type="submit" aria-label="Lưu cấu hình" :disabled="saving" class="rounded-lg bg-cyan-300 px-5 py-3 font-semibold text-slate-950 disabled:opacity-50">{{ saving ? 'Đang lưu…' : 'Lưu cấu hình' }}</button>
+            </form>
+          </div>
         </template>
       </template>
     </section>

@@ -112,4 +112,43 @@ describe('server management client', () => {
     expect((wrapper.get('select[aria-label="Server quản trị"]').element as HTMLSelectElement).disabled).toBe(false);
     expect((wrapper.get('textarea[aria-label="Lời chào voice"]').element as HTMLTextAreaElement).value).toBe('Guild One saved');
   });
+
+  it('keeps the server selector visible while its settings request is pending', async () => {
+    let completeSettings!: (response: Response) => void;
+    vi.stubGlobal('fetch', vi.fn(async (input: string) => {
+      const url = String(input);
+      if (url.endsWith('/api/auth/me')) return new Response(JSON.stringify({ user: { id: 'u1', username: 'Alice' }, csrfToken: 'csrf-1' }));
+      if (url.endsWith('/api/admin/guilds')) return new Response(JSON.stringify({ guilds: [{ id: 'guild-1', name: 'Guild One' }] }));
+      if (url.endsWith('/api/admin/guilds/guild-1/settings')) return new Promise<Response>((resolve) => { completeSettings = resolve; });
+      throw new Error(`Unexpected request ${url}`);
+    }));
+    const wrapper = await mountManage();
+    expect(wrapper.get('select[aria-label="Server quản trị"]').text()).toContain('Guild One');
+    expect(wrapper.text()).toContain('Đang tải cấu hình');
+    completeSettings(new Response(JSON.stringify(settings)));
+    await flushPromises();
+    expect(wrapper.find('form').exists()).toBe(true);
+  });
+
+  it('keeps the selector in place when switching to a slower server', async () => {
+    let completeSecond!: (response: Response) => void;
+    vi.stubGlobal('fetch', vi.fn(async (input: string) => {
+      const url = String(input);
+      if (url.endsWith('/api/auth/me')) return new Response(JSON.stringify({ user: { id: 'u1', username: 'Alice' }, csrfToken: 'csrf-1' }));
+      if (url.endsWith('/api/admin/guilds')) return new Response(JSON.stringify({ guilds: [
+        { id: 'guild-1', name: 'Guild One' }, { id: 'guild-2', name: 'Guild Two' }
+      ] }));
+      if (url.endsWith('/api/admin/guilds/guild-1/settings')) return new Response(JSON.stringify(settings));
+      if (url.endsWith('/api/admin/guilds/guild-2/settings')) return new Promise<Response>((resolve) => { completeSecond = resolve; });
+      throw new Error(`Unexpected request ${url}`);
+    }));
+    const wrapper = await mountManage();
+    await wrapper.get('select[aria-label="Server quản trị"]').setValue('guild-2');
+    await flushPromises();
+    expect((wrapper.get('select[aria-label="Server quản trị"]').element as HTMLSelectElement).value).toBe('guild-2');
+    expect(wrapper.text()).toContain('Đang tải cấu hình');
+    completeSecond(new Response(JSON.stringify({ ...settings, welcomeMessage: 'Second guild {user}' })));
+    await flushPromises();
+    expect((wrapper.get('textarea[aria-label="Lời chào voice"]').element as HTMLTextAreaElement).value).toBe('Second guild {user}');
+  });
 });

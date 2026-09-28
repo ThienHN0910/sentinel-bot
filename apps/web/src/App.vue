@@ -38,6 +38,7 @@ onUnmounted(() => { if (timer) clearInterval(timer); });
           <router-link to="/commands">Lệnh &amp; cài đặt</router-link>
           <router-link to="/dashboard">Dashboard</router-link>
           <router-link to="/dashboard/rankings">Xếp hạng</router-link>
+          <router-link to="/dashboard/manage">Quản trị server</router-link>
         </nav>
         <a class="header-cta" :href="INSTALL_URL" target="_blank" rel="noopener noreferrer">Thêm vào Discord <ArrowUpRight :size="16" /></a>
       </div>

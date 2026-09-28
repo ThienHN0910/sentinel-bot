@@ -6,6 +6,7 @@ import TermsView from '../views/TermsView.vue';
 import DashboardView from '../views/DashboardView.vue';
 import WheelView from '../views/WheelView.vue';
 import RankingsView from '../views/RankingsView.vue';
+import ManageView from '../views/ManageView.vue';
 
 export const routes: RouteRecordRaw[] = [
   { path: '/', name: 'home', component: LandingView },
@@ -14,5 +15,6 @@ export const routes: RouteRecordRaw[] = [
   { path: '/terms', name: 'terms', component: TermsView },
   { path: '/dashboard', name: 'dashboard', component: DashboardView },
   { path: '/dashboard/rankings', name: 'rankings', component: RankingsView },
+  { path: '/dashboard/manage', name: 'manage', component: ManageView },
   { path: '/wheel', name: 'wheel', component: WheelView }
 ];

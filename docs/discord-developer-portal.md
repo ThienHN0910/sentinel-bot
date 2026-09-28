@@ -29,6 +29,12 @@ Mô tả trên dưới 400 ký tự và chỉ nhắc các lệnh bot hiện đă
 4. Kiểm tra liên kết cài đặt đang dùng trên website: `https://discord.com/oauth2/authorize?client_id=1553723429423808572&scope=bot%20applications.commands&permissions=3230720`.
 5. Sau khi Save Changes, mở các trang [Terms](https://sentinel-dashboard.thienhn.io.vn/terms), [Privacy](https://sentinel-dashboard.thienhn.io.vn/privacy) và [Hướng dẫn lệnh](https://sentinel-dashboard.thienhn.io.vn/commands) bằng cửa sổ ẩn danh để xác nhận truy cập công khai.
 
+## Đăng nhập Discord cho trang quản trị
+
+Trong **OAuth2 → Redirects**, thêm chính xác `https://sentinel-bot.thienhn.io.vn/api/auth/discord/callback`. Luồng đăng nhập dùng scope `identify` và `guilds`; đây là luồng riêng với liên kết cài bot. Không điền callback này vào ô Interactions Endpoint URL.
+
+Trên VPS, cấu hình `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `DISCORD_REDIRECT_URI=https://sentinel-bot.thienhn.io.vn/api/auth/discord/callback`, `FRONTEND_URL=https://sentinel-dashboard.thienhn.io.vn` và `SESSION_SECRET` là chuỗi ngẫu nhiên dài ít nhất 32 byte. Giữ các giá trị bí mật ở môi trường chạy, không đưa vào git hoặc biến `VITE_*`. Sau khi deploy, kiểm tra đăng nhập rồi đăng xuất trên `/dashboard/manage`; cookie phiên thuộc miền API và có thời hạn tối đa 7 ngày.
+
 **Lưu ý về hỗ trợ:** Trang chính sách dùng [GitHub Issues](https://github.com/ThienHN0910/sentinel-bot/issues) theo lựa chọn của chủ dự án. Issue là công khai; người dùng được nhắc không đăng token hoặc dữ liệu cá nhân trong issue.
 
 Tham khảo tài liệu Discord: [App profile pages](https://support-dev.discord.com/hc/en-us/articles/6378525413143-App-Directory-App-profile-pages), [OAuth2 và bot authorization](https://discord.com/developers/docs/topics/oauth2), [Developer Terms](https://support-dev.discord.com/hc/en-us/articles/8562894815383-Discord-Developer-Terms-of-Service).

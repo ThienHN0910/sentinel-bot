@@ -1,5 +1,7 @@
 import fastify from 'fastify';
 import cors from '@fastify/cors';
+import cookie from '@fastify/cookie';
+import rateLimit from '@fastify/rate-limit';
 import websocket from '@fastify/websocket';
 import { healthRoutes } from './routes/health';
 import { leaderboardRoutes } from './routes/leaderboard';
@@ -8,15 +10,20 @@ import { registerWheelClient } from './websocket/wheelSocket';
 import type { Client } from 'discord.js';
 import { dashboardRoutes } from './routes/dashboard';
 import { rankingRoutes } from './routes/rankings';
+import { registerAuthRoutes } from './routes/auth';
 import type { GovernorManager } from '../governor/GovernorManager';
 
 export function buildFastifyServer(client?: Client, governor?: GovernorManager) {
   const app = fastify({ logger: false });
 
   app.register(cors, {
-    origin: '*',
+    origin: process.env.FRONTEND_URL?.replace(/\/$/, '') || 'http://localhost:5173',
+    credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'DELETE']
   });
+
+  app.register(cookie);
+  app.register(rateLimit, { global: false });
 
   app.register(websocket);
 
@@ -24,6 +31,7 @@ export function buildFastifyServer(client?: Client, governor?: GovernorManager) 
   app.register(leaderboardRoutes);
   app.register((instance) => dashboardRoutes(instance, client));
   app.register((instance) => rankingRoutes(instance, client));
+  app.register(registerAuthRoutes);
   app.register(wheelRoutes);
 
   app.register(async function (fastifyInstance) {

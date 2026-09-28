@@ -1,53 +1,81 @@
 import cron from 'node-cron';
-import { Client, EmbedBuilder, TextChannel } from 'discord.js';
+import { Client, EmbedBuilder, type TextChannel } from 'discord.js';
 import { UserStatModel } from '../../models/UserStat';
-import { WordStatModel } from '../../models/WordStat';
 import { GuildConfigModel } from '../../models/GuildConfig';
+import { ReportDeliveryModel } from '../../models/ReportDelivery';
 
-export async function generateWeeklySummary(client: Client): Promise<void> {
-  const guilds = await GuildConfigModel.find({ reportChannelId: { $exists: true } });
+const REPORT_TIMEZONE = 'Asia/Ho_Chi_Minh';
+const HOUR_MS = 60 * 60 * 1000;
 
-  for (const g of guilds) {
-    if (!g.reportChannelId) continue;
-    const channel = (await client.channels.fetch(g.reportChannelId).catch(() => null)) as TextChannel | null;
-    if (!channel) continue;
+function reportWindow(now: Date): { weekStart: string } | null {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
+    timeZone: REPORT_TIMEZONE, weekday: 'short', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+  }).formatToParts(now).map((part) => [part.type, part.value]));
+  const hour = Number(parts.hour);
+  const minute = Number(parts.minute);
+  if (parts.weekday !== 'Mon' || hour < 9 || hour > 18 || (hour === 18 && minute > 0)) return null;
+  return { weekStart: `${parts.year}-${parts.month}-${parts.day}` };
+}
 
-    const [topVoice, topChat, topWords] = await Promise.all([
-      UserStatModel.find({ guildId: g.guildId }).sort({ totalVoiceSeconds: -1 }).limit(3),
-      UserStatModel.find({ guildId: g.guildId }).sort({ totalMessages: -1 }).limit(3),
-      WordStatModel.find({ guildId: g.guildId }).sort({ count: -1 }).limit(5)
-    ]);
-
-    const embed = new EmbedBuilder()
-      .setTitle('📊 BÁO CÁO HOẠT ĐỘNG TUẦN - SENTINEL BOT')
-      .setColor(0x00f2fe)
-      .addFields(
-        {
-          name: '🏆 Top Voice Champions',
-          value: topVoice.map((u, i) => `${i + 1}. **${u.username}** - ${Math.round(u.totalVoiceSeconds / 3600)}h`).join('\n') || 'Chưa có dữ liệu'
-        },
-        {
-          name: '💬 Top Chiến Thần Chat',
-          value: topChat.map((u, i) => `${i + 1}. **${u.username}** - ${u.totalMessages} tin nhắn`).join('\n') || 'Chưa có dữ liệu'
-        },
-        {
-          name: '🔥 Từ Khóa Hot Nhất Tuần',
-          value: topWords.map((w) => `\`${w.word}\` (${w.count})`).join(', ') || 'Chưa có dữ liệu'
-        }
-      )
-      .setTimestamp();
-
-    await channel.send({ embeds: [embed] });
+async function claimDelivery(guildId: string, weekStart: string, now: Date): Promise<boolean> {
+  try {
+    const record = await ReportDeliveryModel.findOneAndUpdate(
+      { guildId, weekStart, status: { $ne: 'sent' }, $or: [
+        { leaseUntil: { $lte: now } }, { leaseUntil: { $exists: false } }
+      ] },
+      { $setOnInsert: { guildId, weekStart }, $set: { status: 'pending', leaseUntil: new Date(now.getTime() + 15 * 60_000) }, $inc: { attempts: 1 } },
+      { upsert: true, new: true }
+    );
+    return !!record;
+  } catch (error) {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 11000) return false;
+    throw error;
   }
 }
 
-export function scheduleWeeklyReports(client: Client) {
-  // Every Monday at 00:00:00
-  return cron.schedule('0 0 * * 1', async () => {
+export async function generateWeeklySummary(client: Client, now = new Date()): Promise<void> {
+  const window = reportWindow(now);
+  if (!window) return;
+  const guilds = await GuildConfigModel.find({ reportChannelId: { $exists: true, $nin: [null, ''] } });
+
+  for (const config of guilds) {
+    if (!config.reportChannelId) continue;
+    const channel = await client.channels.fetch(config.reportChannelId).catch(() => null) as TextChannel | null;
+    if (!channel || typeof channel.send !== 'function') continue;
+    if (!await claimDelivery(config.guildId, window.weekStart, now)) continue;
+
     try {
-      await generateWeeklySummary(client);
-    } catch (err) {
-      console.error('Failed to run weekly report:', err);
+      const [topVoice, topChat] = await Promise.all([
+        UserStatModel.find({ guildId: config.guildId }).sort({ totalVoiceSeconds: -1 }).limit(3),
+        UserStatModel.find({ guildId: config.guildId }).sort({ totalMessages: -1 }).limit(3)
+      ]);
+      const embed = new EmbedBuilder()
+        .setTitle('📊 BÁO CÁO HOẠT ĐỘNG CỘNG DỒN - SENTINEL BOT')
+        .setDescription(`Xếp hạng cộng dồn từ khi Sentinel bắt đầu ghi nhận, tính đến ${now.toISOString()}. Voice chỉ gồm thời gian đã lưu.`)
+        .setColor(0x00f2fe)
+        .addFields(
+          { name: '🏆 Voice đã lưu', value: topVoice.map((user, index) => `${index + 1}. **${user.username}** - ${Math.floor(user.totalVoiceSeconds / 3600)} giờ`).join('\n') || 'Chưa có dữ liệu' },
+          { name: '💬 Tin nhắn', value: topChat.map((user, index) => `${index + 1}. **${user.username}** - ${user.totalMessages} tin nhắn`).join('\n') || 'Chưa có dữ liệu' }
+        )
+        .setTimestamp(now);
+      await channel.send({ embeds: [embed] });
+      await ReportDeliveryModel.updateOne(
+        { guildId: config.guildId, weekStart: window.weekStart, status: 'pending' },
+        { $set: { status: 'sent', sentAt: now }, $unset: { leaseUntil: 1 } }
+      );
+    } catch (error) {
+      await ReportDeliveryModel.updateOne(
+        { guildId: config.guildId, weekStart: window.weekStart, status: 'pending' },
+        { $set: { leaseUntil: new Date(now.getTime() + HOUR_MS) } }
+      );
+      console.error(`[WeeklyReport] Failed for guild ${config.guildId}:`, error);
     }
-  });
+  }
+}
+
+export function scheduleWeeklyReports(client: Client): { stop(): void } {
+  return cron.schedule('0 9-18 * * 1', () => {
+    void generateWeeklySummary(client).catch((error) => console.error('[WeeklyReport] Scheduler failed:', error));
+  }, { timezone: REPORT_TIMEZONE });
 }

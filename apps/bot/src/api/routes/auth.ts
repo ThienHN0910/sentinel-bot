@@ -5,10 +5,13 @@ import { AuthFailure, consumeOAuthState, createOAuthState, createSession, requir
 const secureCookie = { path: '/', httpOnly: true, secure: true, sameSite: 'lax' as const };
 
 export async function registerAuthRoutes(app: FastifyInstance) {
-  app.get('/api/auth/discord/start', { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, async (_request, reply) => {
+  app.get('/api/auth/discord/start', { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, async (request, reply) => {
     try {
       oauthConfig();
-      const state = await createOAuthState();
+      const { return_to: requested } = request.query as { return_to?: unknown };
+      const returnPath = typeof requested === 'string' &&
+        (/^\/games\/[A-Za-z0-9_-]{21}$/.test(requested) || requested === '/games/new') ? requested : undefined;
+      const state = await createOAuthState(returnPath);
       reply.setCookie(STATE_COOKIE, state, { ...secureCookie, maxAge: 600 });
       return reply.redirect(discordAuthorizationUrl(state));
     } catch {
@@ -19,16 +22,16 @@ export async function registerAuthRoutes(app: FastifyInstance) {
   app.get('/api/auth/discord/callback', async (request, reply) => {
     const { code, state } = request.query as { code?: string; state?: string };
     if (typeof code !== 'string' || !code || typeof state !== 'string') return reply.code(400).send({ error: 'Invalid OAuth callback' });
-    let valid: boolean;
-    try { valid = await consumeOAuthState(state, request.cookies[STATE_COOKIE]); }
+    let consumed: { valid: boolean; returnPath: string | null };
+    try { consumed = await consumeOAuthState(state, request.cookies[STATE_COOKIE]); }
     catch { return reply.code(503).send({ error: 'Login state unavailable' }); }
-    if (!valid) return reply.code(400).send({ error: 'Invalid or expired OAuth state' });
+    if (!consumed.valid) return reply.code(400).send({ error: 'Invalid or expired OAuth state' });
     try {
       const { user, guilds } = await exchangeDiscordCode(code);
       const session = await createSession(user, guilds);
       reply.setCookie(SESSION_COOKIE, session, { ...secureCookie, maxAge: SESSION_SECONDS });
       reply.clearCookie(STATE_COOKIE, secureCookie);
-      return reply.redirect(`${oauthConfig().frontendUrl}/dashboard/manage`);
+      return reply.redirect(`${oauthConfig().frontendUrl}${consumed.returnPath || '/dashboard/manage'}`);
     } catch {
       return reply.code(502).send({ error: 'Discord login failed' });
     }

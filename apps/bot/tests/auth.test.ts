@@ -79,6 +79,23 @@ describe('Discord OAuth routes', () => {
     expect(stateCookieFrom(response)).toMatch(/^sentinel_oauth_state=[A-Za-z0-9_-]+$/);
   });
 
+  it('returns to a requested game after OAuth and rejects an external return URL', async () => {
+    const id = 'abcdefghijklmnopqrstu';
+    const start = await app.inject(`/api/auth/discord/start?return_to=${encodeURIComponent(`/games/${id}`)}`);
+    const callback = await app.inject({
+      url: `/api/auth/discord/callback?code=valid&state=${stateFrom(start)}`,
+      headers: { cookie: stateCookieFrom(start) }
+    });
+    expect(callback.headers.location).toBe(`https://sentinel-dashboard.thienhn.io.vn/games/${id}`);
+
+    const bad = await app.inject('/api/auth/discord/start?return_to=https%3A%2F%2Fevil.example%2F');
+    const badCallback = await app.inject({
+      url: `/api/auth/discord/callback?code=valid&state=${stateFrom(bad)}`,
+      headers: { cookie: stateCookieFrom(bad) }
+    });
+    expect(badCallback.headers.location).toBe('https://sentinel-dashboard.thienhn.io.vn/dashboard/manage');
+  });
+
   it('rejects a callback without a valid one-time state', async () => {
     const response = await app.inject('/api/auth/discord/callback?code=abc&state=invalid');
     expect(response.statusCode).toBe(400);

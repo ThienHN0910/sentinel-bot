@@ -27,4 +27,7 @@ if (icon.readUInt32BE(16) !== 1024 || icon.readUInt32BE(20) !== 1024 || icon.byt
 }
 const config = JSON.parse(readFileSync(resolve(root, 'vercel.json'), 'utf8'));
 if (config.cleanUrls !== true) throw new Error('Vercel must serve clean legal URLs');
+if (!config.rewrites?.some(rule => rule.source === '/games/:sessionId' && rule.destination === '/index.html')) {
+  throw new Error('Vercel must serve direct game links with the SPA shell');
+}
 console.log(`Verified ${pages.length} static pages, canonical URLs, robots directives, and Discord icon.`);

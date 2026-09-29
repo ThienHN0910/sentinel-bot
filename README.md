@@ -4,6 +4,8 @@
 
 [Thêm vào server](https://discord.com/oauth2/authorize?client_id=1553723429423808572&scope=bot%20applications.commands&permissions=3230720) · [Dashboard](https://sentinel-dashboard.thienhn.io.vn/dashboard) · [Game UI](https://sentinel-dashboard.thienhn.io.vn/games/new) · [Xếp hạng đầy đủ](https://sentinel-dashboard.thienhn.io.vn/dashboard/rankings) · [Quản trị server](https://sentinel-dashboard.thienhn.io.vn/dashboard/manage) · [Hướng dẫn lệnh](https://sentinel-dashboard.thienhn.io.vn/commands) · [Trạng thái API](https://sentinel-bot.thienhn.io.vn/api/health)
 
+[Case Study về Sentinel](https://thienhn.io.vn/projects/sentinel-bot-discord-community-analytics) · [Bài kỹ thuật về kiến trúc Discord–web](https://thienhn.io.vn/blog/engineering-sentinel-discord-web-state-machines)
+
 Sentinel ghi nhận hoạt động mà bot quan sát được trong từng server Discord và hiển thị qua website. Repo chứa bot, API và frontend trong một pnpm workspace. Phiên bản hiện tại: **1.0.0**.
 
 ## Tính năng

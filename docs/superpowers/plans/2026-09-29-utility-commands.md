@@ -47,6 +47,13 @@
 **Interfaces:** Produce `parseReminderDelay(input: string): number` (milliseconds or validation error), `ReminderService.createReminder({userId,guildId,message,remindAt}): Promise<ReminderDocument>`, `listReminders(userId): Promise<{pending: ReminderDocument[]; failed: ReminderDocument[]}>`, `cancelReminder(userId, publicId): Promise<boolean>`, and `pollReminders(client): Promise<number>`. Keep `startPolling`/`stopPolling` callable from `index.ts`.
 
 - [ ] **Step 1: Write failing lifecycle tests.** Assert atomic `findOneAndUpdate` claim allows one of two pollers to send; successful `client.users.fetch(userId).send` marks completed after send; rejected DM marks failed, does not call `client.channels.fetch`, and does not log `message`; terminal expiry is 7 days. Assert two concurrent creates cannot allocate an eleventh pending slot. Replace the legacy channel delivery assertions in `economy.test.ts`.
+  ```ts
+  it('does not complete or publish a blocked DM', async () => {
+    await ReminderService.pollReminders(clientWithRejectedDm);
+    expect(await ReminderModel.findOne({ publicId: 'reminder0001' })).toMatchObject({ status: 'failed' });
+    expect(clientWithRejectedDm.channels.fetch).not.toHaveBeenCalled();
+  });
+  ```
 - [ ] **Step 2: Run `pnpm --filter @sentinel/bot exec vitest run tests/reminderService.test.ts tests/economy.test.ts`; expect the new tests to fail on current channel delivery.**
 - [ ] **Step 3: Implement schema and service.** Add 12-character public ID with unique index; status `pending|sending|completed|failed|cancelled`, claim timestamp, attempt count and terminal `deleteAt` TTL index. Allocate pending slot 0–9 with a unique partial index on `(userId,slot)` for active statuses so concurrent creates respect the cap. Claim due work one document at a time with `findOneAndUpdate`; recover expired claims with a bounded attempt count; mark completion only after DM success. Preserve 30-second poll startup and stop behavior, but prevent overlap in a single process.
 - [ ] **Step 4: Run the same Vitest command; expect all tests to pass.**
@@ -59,6 +66,13 @@
 **Interfaces:** Consume Task 1 service. Produce `handleRemindCommand(interaction: ChatInputCommandInteraction): Promise<void>` with `set`, `list`, `cancel`; all replies ephemeral. `set` options are `in` and `text`; `cancel` option is `id`.
 
 - [ ] **Step 1: Write failing command tests.** Assert `1m` and `7d` accepted; `0m`, `8d`, malformed and overflow durations rejected; 201-character text and 11th pending reminder rejected; `list` returns at most 10 pending and 5 failed; other user's `id` cannot be cancelled; no public reply contains reminder text.
+  ```ts
+  it('rejects duration outside the supported window', () => {
+    expect(() => parseReminderDelay('0m')).toThrow();
+    expect(() => parseReminderDelay('8d')).toThrow();
+    expect(parseReminderDelay('7d')).toBe(7 * 24 * 60 * 60_000);
+  });
+  ```
 - [ ] **Step 2: Run `pnpm --filter @sentinel/bot exec vitest run tests/reminderCommands.test.ts`; expect failure because the command is absent.**
 - [ ] **Step 3: Implement handler and register global slash command.** Use Discord timestamps in `list`, clear closed-DM warning on create, 8-second query timeout for database work and private errors. Route three subcommands in `interactionCreate.ts`.
 - [ ] **Step 4: Run the same test, then `pnpm --filter @sentinel/bot typecheck`; expect both to pass.**
@@ -71,6 +85,14 @@
 **Interfaces:** Produce `getServerStats(guild: Guild, now?: Date): Promise<{members:number; messages:number; voiceCompletedSeconds:number; voiceActiveEstimatedSeconds:number; updatedAt:string}>` and `handleServerStatsCommand(interaction: ChatInputCommandInteraction): Promise<void>`.
 
 - [ ] **Step 1: Write failing tests.** Aggregate `UserStat.totalMessages` and `totalVoiceSeconds` for one guild; include only currently connected `VoiceSession` users in estimated active seconds; use `guild.memberCount`; a second request within 30 seconds uses cached snapshot; a different guild gets different data; MongoDB rejection produces private error rather than zero metrics. In web tests, a `?guild=` ID present in `/api/guilds` wins over localStorage and an unknown ID does not.
+  ```ts
+  it('keeps completed and active voice separate', async () => {
+    expect(await getServerStats(guild, now)).toMatchObject({
+      members: 42, messages: 100, voiceCompletedSeconds: 3600,
+      voiceActiveEstimatedSeconds: 600
+    });
+  });
+  ```
 - [ ] **Step 2: Run `pnpm --filter @sentinel/bot exec vitest run tests/serverStatsCommand.test.ts` and `pnpm --filter @sentinel/web exec vitest run tests/dashboardView.test.ts`; expect both to fail because the service and query handling are absent.**
 - [ ] **Step 3: Implement service and command.** Use indexed guild aggregate and limit active session reads to current voice-state user IDs, reuse `getActiveVoiceSeconds`, format Vietnamese duration and link `/dashboard?guild=<guildId>`. Make DashboardView honor that query after validating it against fetched guilds. Register `/serverstats` as guild-only with a clear cumulative label.
 - [ ] **Step 4: Run the bot test, `pnpm --filter @sentinel/web exec vitest run tests/dashboardView.test.ts`, and `pnpm --filter @sentinel/bot typecheck`; expect all to pass.**

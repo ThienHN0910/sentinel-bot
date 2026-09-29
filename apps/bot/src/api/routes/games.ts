@@ -1,13 +1,15 @@
 import type { Client } from 'discord.js';
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import type { GameAction, GameKind } from '@sentinel/shared';
-import { AuthFailure, requireSession, verifyMutation } from '../../services/auth/sessions';
+import { AuthFailure, requireSession, SESSION_COOKIE, verifyMutation } from '../../services/auth/sessions';
 import { authorizeGuildMember, GuildMembershipError } from '../../services/auth/guildMembership';
 import { GameSessionError, createGameSession, getGameSession, actOnGameSession } from '../../services/game/GameSessionService';
 import { GameRuleError } from '../../services/game/sessionRules';
 import { syncGameMessage } from '../../commands/gameSessions';
 
-const RATE_LIMIT = { max: 20, timeWindow: '1 minute' } as const;
+const RATE_LIMIT = { max: 20, timeWindow: '1 minute',
+  keyGenerator: (request: { cookies: Record<string, string | undefined>; ip: string }) =>
+    request.cookies[SESSION_COOKIE] || request.ip } as const;
 
 function sendFailure(error: unknown, reply: FastifyReply) {
   if (error instanceof AuthFailure || error instanceof GuildMembershipError) {
@@ -37,6 +39,15 @@ function validAction(value: unknown): value is GameAction {
 }
 
 export async function registerGameRoutes(app: FastifyInstance, client?: Client) {
+  app.get('/api/games/guilds', async (request, reply) => {
+    try {
+      const session = await requireSession(request);
+      reply.header('Cache-Control', 'no-store');
+      return { guilds: session.oauthGuilds.map(({ id }) => client?.guilds.cache.get(id))
+        .filter((guild): guild is NonNullable<typeof guild> => !!guild)
+        .map(({ id, name }) => ({ id, name })) };
+    } catch (error) { return sendFailure(error, reply); }
+  });
   app.get('/api/games/:sessionId', async (request, reply) => {
     reply.header('Cache-Control', 'no-store');
     try {

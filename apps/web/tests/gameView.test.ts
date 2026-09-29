@@ -63,7 +63,7 @@ describe('shared web games', () => {
     const fetcher = vi.fn(async (input: string, options?: RequestInit) => {
       const url = String(input);
       if (url.endsWith('/api/auth/me')) return new Response(JSON.stringify({ user: { id: '234567890123456789', username: 'A', avatar: null }, csrfToken: 'secret' }));
-      if (url.endsWith('/api/guilds')) return new Response(JSON.stringify({ guilds: [{ id: '123456789012345678', name: 'Test Guild' }] }));
+      if (url.endsWith('/api/games/guilds')) return new Response(JSON.stringify({ guilds: [{ id: '123456789012345678', name: 'Test Guild' }] }));
       if (options?.method === 'POST') return new Response(JSON.stringify(session({ phase: 'waiting', opponentId: null })), { status: 201 });
       return new Response('{}');
     });

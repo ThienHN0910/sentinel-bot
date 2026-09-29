@@ -1,10 +1,11 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, type ButtonInteraction, type ChatInputCommandInteraction, type Client } from 'discord.js';
 import type { GameSessionView, RpsChoice } from '@sentinel/shared';
-import { actOnGameSession, attachGameMessage, createGameSession, getGameSession } from '../services/game/GameSessionService';
+import { actOnGameSession, attachGameMessage, createGameSession, getGameSession, replaceGameMessage } from '../services/game/GameSessionService';
 
 const GAME_ID = /^[A-Za-z0-9_-]{21}$/;
 const webBase = () => (process.env.FRONTEND_URL || 'https://sentinel-dashboard.thienhn.io.vn').replace(/\/$/, '');
 const webUrl = (id: string) => `${webBase()}/games/${id}`;
+const messageEdits = new Map<string, Promise<void>>();
 const button = (id: string, label: string, style = ButtonStyle.Secondary, disabled = false) =>
   new ButtonBuilder().setCustomId(id).setLabel(label).setStyle(style).setDisabled(disabled);
 
@@ -65,13 +66,28 @@ export async function handleOpenGameCommand(interaction: ChatInputCommandInterac
     const game = await getGameSession(id, interaction.user.id);
     if (!interaction.guildId || game.guildId !== interaction.guildId) throw new Error('Ván thuộc server khác.');
     if (game.creatorId !== interaction.user.id && game.opponentId !== interaction.user.id) throw new Error('Chỉ người chơi được mở ván.');
-    if (game.discordMessageUrl) { await interaction.editReply(`Ván đã mở: ${game.discordMessageUrl}`); return; }
+    let deletedMessageId: string | undefined;
+    if (game.discordMessageUrl) {
+      const old = game.discordMessageUrl.match(/\/channels\/\d+\/(\d+)\/(\d+)$/);
+      if (!old) throw new Error('Liên kết tin nhắn Discord của ván không hợp lệ.');
+      try {
+        const oldChannel = await interaction.client.channels.fetch(old[1]);
+        if (oldChannel?.isTextBased() && 'messages' in oldChannel) {
+          await oldChannel.messages.fetch(old[2]);
+          await interaction.editReply(`Ván đã mở: ${game.discordMessageUrl}`);
+          return;
+        }
+      } catch { /* The stored message was deleted or its channel is inaccessible. */ }
+      deletedMessageId = old[2];
+    }
     if (game.phase !== 'waiting' && game.phase !== 'active') throw new Error('Ván đã kết thúc hoặc hết hạn.');
     const channel = interaction.channel;
     if (!channel?.isTextBased() || !('send' in channel)) throw new Error('Cần kênh văn bản để mở ván.');
     const message = await channel.send(renderGameMessage(game));
     try {
-      const attached = await attachGameMessage(id, interaction.user.id, interaction.guildId, interaction.channelId, message.id);
+      const attached = deletedMessageId ?
+        await replaceGameMessage(id, interaction.user.id, interaction.guildId, interaction.channelId, message.id, deletedMessageId) :
+        await attachGameMessage(id, interaction.user.id, interaction.guildId, interaction.channelId, message.id);
       await interaction.editReply(`Đã mở ván: ${attached.discordMessageUrl}`);
     } catch (error) {
       await message.delete().catch(() => undefined);
@@ -82,13 +98,21 @@ export async function handleOpenGameCommand(interaction: ChatInputCommandInterac
 
 export async function syncGameMessage(client: Client | undefined, game: GameSessionView): Promise<void> {
   if (!client || !game.discordMessageUrl) return;
-  const match = game.discordMessageUrl.match(/\/channels\/\d+\/(\d+)\/(\d+)$/);
-  if (!match) return;
-  const channel = await client.channels.fetch(match[1]);
-  if (channel?.isTextBased() && 'messages' in channel) {
-    const message = await channel.messages.fetch(match[2]);
-    await message.edit(renderGameMessage(game));
-  }
+  const previous = messageEdits.get(game.sessionId) ?? Promise.resolve();
+  const edit = previous.catch(() => undefined).then(async () => {
+    // Read after previous Discord edit so a delayed older edit cannot win the race.
+    const current = await getGameSession(game.sessionId);
+    const match = current.discordMessageUrl?.match(/\/channels\/\d+\/(\d+)\/(\d+)$/);
+    if (!match) return;
+    const channel = await client.channels.fetch(match[1]);
+    if (channel?.isTextBased() && 'messages' in channel) {
+      const message = await channel.messages.fetch(match[2]);
+      await message.edit(renderGameMessage(current));
+    }
+  });
+  messageEdits.set(game.sessionId, edit);
+  try { await edit; }
+  finally { if (messageEdits.get(game.sessionId) === edit) messageEdits.delete(game.sessionId); }
 }
 
 export async function handleGameButton(interaction: ButtonInteraction): Promise<void> {

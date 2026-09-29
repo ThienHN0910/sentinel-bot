@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GameSessionView } from '@sentinel/shared';
 import * as service from '../src/services/game/GameSessionService';
-import { handleGameButton, handleNewGameCommand, handleOpenGameCommand, renderGameMessage } from '../src/commands/gameSessions';
+import { handleGameButton, handleNewGameCommand, handleOpenGameCommand, renderGameMessage, syncGameMessage } from '../src/commands/gameSessions';
 import { slashCommands } from '../src/events/ready';
 
 const id = 'abcdefghijklmnopqrstu';
@@ -44,8 +44,30 @@ describe('shared Discord games', () => {
     expect(interaction.editReply).toHaveBeenCalledWith(expect.stringContaining('server'));
   });
 
+  it('reopens a web game after its linked Discord message was deleted', async () => {
+    vi.spyOn(service, 'getGameSession').mockResolvedValue(view({
+      discordMessageUrl: 'https://discord.com/channels/123456789012345678/456/789'
+    }));
+    const replace = vi.spyOn(service, 'replaceGameMessage').mockResolvedValue(view({
+      discordMessageUrl: 'https://discord.com/channels/123456789012345678/456/790'
+    }));
+    const send = vi.fn().mockResolvedValue({ id: '790', delete: vi.fn() });
+    const interaction = { guildId: '123456789012345678', channelId: '456',
+      user: { id: '234567890123456789' }, options: { getString: () => id },
+      client: { channels: { fetch: vi.fn().mockResolvedValue({ isTextBased: () => true,
+        messages: { fetch: vi.fn().mockRejectedValue(new Error('Unknown Message')) } }) } },
+      channel: { isTextBased: () => true, send }, deferReply: vi.fn(), deferred: true, editReply: vi.fn() } as any;
+    await handleOpenGameCommand(interaction);
+    expect(replace).toHaveBeenCalledWith(id, '234567890123456789', '123456789012345678',
+      '456', '790', '789');
+    expect(interaction.editReply).toHaveBeenCalledWith(expect.stringContaining('790'));
+  });
+
   it('accepts a private RPS choice without echoing it publicly', async () => {
-    vi.spyOn(service, 'getGameSession').mockResolvedValue(view({ phase: 'active', opponentId: '345678901234567890' }));
+    vi.spyOn(service, 'getGameSession').mockResolvedValueOnce(view({ phase: 'active', opponentId: '345678901234567890' }))
+      .mockResolvedValue(view({ phase: 'active', opponentId: '345678901234567890',
+        rps: { creatorChosen: true, opponentChosen: false },
+        discordMessageUrl: 'https://discord.com/channels/123456789012345678/456/789' }));
     vi.spyOn(service, 'actOnGameSession').mockResolvedValue(view({ phase: 'active', opponentId: '345678901234567890',
       rps: { creatorChosen: true, opponentChosen: false, ownChoice: 'rock' }, discordMessageUrl: 'https://discord.com/channels/123456789012345678/456/789' }));
     const publicEdit = vi.fn().mockResolvedValue(undefined);
@@ -56,5 +78,27 @@ describe('shared Discord games', () => {
     await handleGameButton(interaction);
     expect(interaction.deferReply).toHaveBeenCalledWith({ ephemeral: true });
     expect(JSON.stringify(publicEdit.mock.calls)).not.toContain('rock');
+  });
+
+  it('serializes edits and rereads the latest board after an earlier edit', async () => {
+    let release!: () => void;
+    const firstEdit = new Promise<void>(resolve => { release = resolve; });
+    const edit = vi.fn().mockImplementationOnce(() => firstEdit).mockResolvedValue(undefined);
+    const get = vi.spyOn(service, 'getGameSession').mockResolvedValueOnce(view({ kind: 'tictactoe',
+      phase: 'active', board: ['X', ...Array(8).fill(null)],
+      discordMessageUrl: 'https://discord.com/channels/123456789012345678/456/789' })).mockResolvedValueOnce(view({ kind: 'tictactoe',
+        phase: 'active', board: ['X', 'O', ...Array(7).fill(null)],
+        discordMessageUrl: 'https://discord.com/channels/123456789012345678/456/789' }));
+    const client = { channels: { fetch: vi.fn().mockResolvedValue({ isTextBased: () => true,
+      messages: { fetch: vi.fn().mockResolvedValue({ edit }) } }) } } as any;
+    const linked = view({ discordMessageUrl: 'https://discord.com/channels/123456789012345678/456/789' });
+    const one = syncGameMessage(client, linked);
+    await vi.waitFor(() => expect(edit).toHaveBeenCalledTimes(1));
+    const two = syncGameMessage(client, linked);
+    expect(get).toHaveBeenCalledTimes(1);
+    release();
+    await Promise.all([one, two]);
+    expect(get).toHaveBeenCalledTimes(2);
+    expect(JSON.stringify(edit.mock.calls[1][0])).toContain('O');
   });
 });

@@ -4,7 +4,7 @@ import * as models from '../src/models';
 import * as game from '../src/services/game';
 
 const GameSessionModel = (models as any).GameSessionModel;
-const { createGameSession, getGameSession, actOnGameSession, attachGameMessage } = game as any;
+const { createGameSession, getGameSession, actOnGameSession, attachGameMessage, replaceGameMessage } = game as any;
 
 const now = new Date('2026-09-29T01:00:00Z');
 const id = 'abcdefghijklmnopqrstu';
@@ -78,5 +78,15 @@ describe('durable game sessions', () => {
     const view = await attachGameMessage(id, 'alice', 'guild-1', 'channel-1', 'message-1', now);
     expect(view.discordMessageUrl).toContain('/guild-1/channel-1/message-1');
     expect(update).toHaveBeenCalledTimes(1);
+  });
+
+  it('replaces a deleted Discord message only when the stored message still matches', async () => {
+    const session = { ...active(), channelId: 'old-channel', messageId: 'old-message' };
+    vi.spyOn(GameSessionModel, 'findOne').mockReturnValue({ lean: vi.fn().mockResolvedValue(session) } as never);
+    const update = vi.spyOn(GameSessionModel, 'findOneAndUpdate').mockResolvedValue({
+      ...session, channelId: 'new-channel', messageId: 'new-message'
+    } as never);
+    await replaceGameMessage(id, 'alice', 'guild-1', 'new-channel', 'new-message', 'old-message', now);
+    expect(update.mock.calls[0][0]).toMatchObject({ messageId: 'old-message', version: 0 });
   });
 });

@@ -29,7 +29,7 @@ describe('shared game routes', () => {
     vi.stubEnv('SESSION_SECRET', 'test-session-secret-with-at-least-32-bytes');
     vi.stubEnv('FRONTEND_URL', origin);
     memberFetch = vi.fn().mockResolvedValue({ user: { id: creatorId } });
-    const guild = { id: guildId, members: { fetch: memberFetch } };
+    const guild = { id: guildId, name: 'Test Guild', members: { fetch: memberFetch } };
     const client = { guilds: { cache: new Map([[guildId, guild]]) } } as unknown as Client;
     app = buildFastifyServer(client);
     await app.ready();
@@ -90,5 +90,17 @@ describe('shared game routes', () => {
     memberFetch.mockRejectedValueOnce(new Error('left guild'));
     expect((await app.inject({ method: 'POST', url, payload: { guildId, kind: 'rps' }, headers })).statusCode).toBe(403);
     expect((await app.inject({ method: 'POST', url, payload: { guildId, kind: 'rps' }, headers })).statusCode).toBe(201);
+  });
+
+  it('lists only the logged-in user guilds that have the bot', async () => {
+    vi.spyOn(AuthSessionModel, 'findOne').mockReturnValue({ lean: vi.fn().mockResolvedValue({
+      userId: creatorId, username: 'Alice', avatar: null, csrfToken: csrf,
+      oauthGuilds: [{ id: guildId, owner: false, permissions: '0' },
+        { id: '999999999999999999', owner: false, permissions: '0' }],
+      expiresAt: new Date(Date.now() + 60_000)
+    }) } as never);
+    const response = await app.inject({ url: '/api/games/guilds', headers: { cookie } });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ guilds: [{ id: guildId, name: 'Test Guild' }] });
   });
 });

@@ -94,3 +94,23 @@ export async function attachGameMessage(
   if (!written) throw new GameSessionError('conflict', 'Ván đã được mở trong Discord.');
   return projectGame(written as unknown as GameState, actorId, now);
 }
+
+export async function replaceGameMessage(
+  sessionId: string, actorId: string, guildId: string, channelId: string,
+  messageId: string, previousMessageId: string, now = new Date()
+): Promise<GameSessionView> {
+  const state = await readState(sessionId);
+  if (state.guildId !== guildId || (actorId !== state.creatorId && actorId !== state.opponentId)) {
+    throw new GameSessionError('forbidden', 'Bạn không được mở ván này tại server hiện tại.');
+  }
+  if (state.phase === 'finished' || now.getTime() >= state.expiresAt.getTime()) {
+    throw new GameRuleError('expired', 'Ván đã kết thúc hoặc hết hạn.');
+  }
+  const written = await GameSessionModel.findOneAndUpdate(
+    { sessionId, version: state.version, messageId: previousMessageId, expiresAt: { $gt: now } },
+    { $set: { channelId, messageId }, $inc: { version: 1 } },
+    { new: true, lean: true }
+  );
+  if (!written) throw new GameSessionError('conflict', 'Tin nhắn của ván vừa thay đổi.');
+  return projectGame(written as unknown as GameState, actorId, now);
+}

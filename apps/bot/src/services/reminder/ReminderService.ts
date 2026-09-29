@@ -4,9 +4,8 @@ import { ReminderModel, type ReminderDocument } from '../../models/Reminder';
 
 const DAY_MS = 86_400_000;
 const RETENTION_MS = 7 * DAY_MS;
-const CLAIM_MS = 60_000;
+const STALE_SEND_MS = 10 * 60_000;
 const MAX_BATCH = 20;
-const MAX_ATTEMPTS = 3;
 
 export interface CreateReminderParams {
   userId: string;
@@ -71,16 +70,15 @@ export class ReminderService {
     try {
       const now = new Date();
       await ReminderModel.updateMany(
-        { status: 'sending', claimedAt: { $lt: new Date(now.getTime() - CLAIM_MS) }, attempts: { $gte: MAX_ATTEMPTS } },
+        // Discord DM sends have no idempotency key. A stale in-flight send may have succeeded,
+        // so never reclaim it; surface it as failed for the user to inspect instead.
+        { status: 'sending', claimedAt: { $lt: new Date(now.getTime() - STALE_SEND_MS) } },
         { $set: { status: 'failed', deleteAt: new Date(now.getTime() + RETENTION_MS) } }
       );
       for (let index = 0; index < MAX_BATCH; index++) {
         const claimedAt = new Date();
         const reminder = await ReminderModel.findOneAndUpdate(
-          { $or: [
-            { status: 'pending', remindAt: { $lte: claimedAt } },
-            { status: 'sending', claimedAt: { $lt: new Date(claimedAt.getTime() - CLAIM_MS) }, attempts: { $lt: MAX_ATTEMPTS } }
-          ] },
+          { status: 'pending', remindAt: { $lte: claimedAt } },
           { $set: { status: 'sending', claimedAt }, $inc: { attempts: 1 } },
           { sort: { remindAt: 1 }, new: true }
         );

@@ -91,4 +91,14 @@ describe('private reminder lifecycle', () => {
     expect(send).toHaveBeenCalledTimes(1);
     expect(claim).toHaveBeenCalled();
   });
+
+  it('never reclaims a sending DM after its lease age to avoid duplicate delivery', async () => {
+    const claim = vi.spyOn(ReminderModel, 'findOneAndUpdate').mockResolvedValue(null);
+    await ReminderService.pollReminders({ users: { fetch: vi.fn() } } as never);
+    expect(JSON.stringify(claim.mock.calls[0][0])).not.toContain('sending');
+    expect(ReminderModel.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'sending' }),
+      expect.objectContaining({ $set: expect.objectContaining({ status: 'failed' }) })
+    );
+  });
 });

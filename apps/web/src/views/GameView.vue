@@ -65,7 +65,7 @@ async function initialize() {
     await auth.loadSession();
     if (isNew.value) {
       if (auth.isAuthenticated) {
-        const result = await getJson<{ guilds: { id: string; name: string }[] }>('/api/guilds');
+        const result = await getJson<{ guilds: { id: string; name: string }[] }>('/api/games/guilds');
         if (current === requestId) { guilds.value = result.guilds; selectedGuild.value = result.guilds[0]?.id ?? ''; }
       }
     } else if (sessionId.value) {

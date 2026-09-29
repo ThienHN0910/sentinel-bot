@@ -36,6 +36,27 @@ export const commands: CommandDoc[] = [
     note: 'Bot trả lời riêng cho bạn. Số liệu bắt đầu từ khi bot quan sát hoạt động, không lấy lại lịch sử cũ.'
   },
   {
+    name: 'Thống kê server',
+    syntax: '/serverstats',
+    summary: 'Xem số thành viên hiện tại, tin nhắn cộng dồn và voice đã lưu hoặc đang tham gia (ước tính).',
+    example: '/serverstats',
+    note: 'Có link mở dashboard đúng server. Số liệu hoạt động bắt đầu khi bot quan sát được, không phải riêng 7 ngày.'
+  },
+  {
+    name: 'Nhắc việc riêng',
+    syntax: '/remind set in:<10m|2h|1d> text:<nội dung>',
+    summary: 'Đặt lời nhắc cá nhân từ 1 phút đến 7 ngày. Bot gửi DM khi đến giờ, không đăng vào kênh.',
+    example: '/remind set in:2h text:Họp nhóm',
+    note: 'Tối đa 10 lời nhắc đang chờ/người. Hãy mở DM từ thành viên server để nhận tin.'
+  },
+  {
+    name: 'Xem và hủy lời nhắc',
+    syntax: '/remind list · /remind cancel id:<mã>',
+    summary: 'Xem lời nhắc đang chờ, DM đã gửi thất bại và hủy lời nhắc của chính mình.',
+    example: '/remind cancel id:abc123def456',
+    note: 'Các phản hồi là riêng tư. Bản ghi đã hoàn thành, hủy hoặc gửi thất bại được xóa sau 7 ngày.'
+  },
+  {
     name: 'Bảng xếp hạng',
     syntax: '/leaderboard type:<chat|voice>',
     summary: 'Xem tối đa 10 thành viên có nhiều tin nhắn hoặc thời gian voice nhất trong server.',

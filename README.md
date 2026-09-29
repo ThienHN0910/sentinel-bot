@@ -10,27 +10,35 @@ Sentinel ghi nhận hoạt động mà bot quan sát được trong từng serve
 
 - **Thống kê chat:** số tin nhắn theo thành viên, bảng xếp hạng, từ xuất hiện thường xuyên và biểu đồ theo giờ.
 - **Thống kê voice:** thời gian phiên đã kết thúc, thời gian phiên đang tham gia dưới dạng ước tính, lượt vào voice và bảng xếp hạng.
-- **Mini-game:** vòng quay chia sẻ giữa Discord và web, nối từ tiếng Việt, bầu cua bằng DNE Coins.
+- **Mini-game:** vòng quay 3D có giao diện web, nối từ tiếng Việt và bầu cua bằng DNE Coins trong Discord.
 - **Dashboard:** lấy dữ liệu từ Discord và MongoDB qua API, tự làm mới mỗi 30 giây và hỗ trợ chọn server.
 - **Xếp hạng đầy đủ:** phân trang theo tin nhắn, thời gian voice đã lưu và XP/cấp độ; dữ liệu được truy vấn trực tiếp theo server.
+- **Lệnh tiện ích:** `/serverstats` xem số liệu cộng dồn của server; `/remind` đặt, xem và hủy lời nhắc cá nhân qua DM.
 - **Quản trị server:** đăng nhập Discord để chỉnh lời chào voice và kênh nhận báo cáo; chủ server hoặc người có quyền Manage Server được kiểm tra lại khi đọc và lưu.
-- **Báo cáo tuần:** gửi top chat/voice cộng dồn vào kênh đã chọn, thứ Hai lúc 09:00–18:00 giờ Việt Nam; mỗi tuần có bản ghi chống gửi trùng.
+- **Báo cáo tuần:** gửi top chat/voice cộng dồn vào kênh đã chọn từ 09:00 thứ Hai giờ Việt Nam; nếu gửi lỗi, thử lại mỗi giờ đến 18:00 và lưu bản ghi để hạn chế gửi trùng.
 - **Vận hành:** health endpoint, telemetry CPU/bộ nhớ, lưu phiên voice và khôi phục trạng thái sau khi bot khởi động lại.
 
 > Số liệu bắt đầu từ lúc bot quan sát được hoạt động; bot không đọc ngược lịch sử tin nhắn hoặc voice của Discord. Website công khai số liệu tổng hợp và bảng xếp hạng của server mà bot đã tham gia. Xem [Chính sách quyền riêng tư](https://sentinel-dashboard.thienhn.io.vn/privacy) để biết dữ liệu được xử lý và thời gian lưu.
 
 ## Lệnh Discord
 
+Bot hiện đăng ký **7 slash command cấp cao nhất**: `/random`, `/game`, `/stats`, `/serverstats`, `/remind`, `/leaderboard` và `/help`. `/game` hiện có ba subcommand: `wordchain`, `noitu` (bí danh của `wordchain`) và `baucua`.
+
 | Lệnh | Chức năng |
 | --- | --- |
 | `/random items:<các mục>` | Tạo vòng quay; quay trong Discord hoặc mở phiên trên web. |
-| `/game wordchain word:<từ>` | Chơi nối từ theo kênh (`/game noitu` là tên thay thế). |
+| `/game wordchain word:<từ>` | Chơi nối từ theo kênh; có thể dùng `/game noitu word:<từ>` thay thế. |
 | `/game baucua item:<mặt> bet:<xu>` | Chơi bầu cua với DNE Coins trong server. |
-| `/stats` | Xem thống kê chat, voice, XP và xu của chính mình. |
-| `/leaderboard type:<chat\|voice>` | Xem top thành viên theo tin nhắn hoặc thời gian voice. |
+| `/stats` | Xem thống kê chat, voice đã lưu và ước tính phiên đang tham gia, XP và xu của chính mình. |
+| `/serverstats` | Xem số thành viên hiện tại, tổng tin nhắn cộng dồn và voice đã lưu/đang tham gia (ước tính) của server; có link dashboard. |
+| `/remind set in:<10m\|2h\|1d> text:<nội dung>` | Đặt lời nhắc từ 1 phút đến 7 ngày; bot gửi DM cho bạn khi đến giờ. |
+| `/remind list` · `/remind cancel id:<mã>` | Xem lời nhắc đang chờ hoặc DM gửi thất bại; hủy lời nhắc của chính mình. Tối đa 10 lời nhắc đang chờ/người. |
+| `/leaderboard type:<chat\|voice>` | Xem top 10 theo tin nhắn hoặc thời gian voice trong server. |
 | `/help` | Xem danh sách lệnh bot đã đăng ký. |
 
 Ví dụ tham số và hướng dẫn cài bot có tại [trang lệnh](https://sentinel-dashboard.thienhn.io.vn/commands). Để điền hồ sơ ứng dụng Discord, xem [hướng dẫn Developer Portal](docs/discord-developer-portal.md).
+
+**Trạng thái game UI:** `/random` đã có vòng quay 3D trên web và nút quay nhanh trong Discord. Nối từ và bầu cua hiện trả kết quả trong Discord; chưa có trang chơi UI riêng cho hai game này. Cờ 3×3 và oẳn tù tì dùng chung phiên web/Discord đã được [đặc tả](docs/superpowers/specs/2026-09-29-cross-platform-games-and-utility-commands-design.md) và đang được triển khai, chưa phải chức năng đã phát hành.
 
 ## Cấu trúc dự án
 

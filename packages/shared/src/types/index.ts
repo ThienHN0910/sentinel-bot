@@ -64,12 +64,16 @@ export interface IWordStat {
 
 export interface IReminder {
   id?: string;
+  publicId: string;
   userId: string;
   guildId: string;
-  channelId: string;
   message: string;
   remindAt: Date;
-  status: 'pending' | 'completed' | 'cancelled';
+  status: 'pending' | 'sending' | 'completed' | 'failed' | 'cancelled';
+  slot: number;
+  attempts: number;
+  claimedAt?: Date;
+  deleteAt?: Date;
   createdAt: Date;
 }
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+﻿import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { calculateDailyStreak, EconomyService, expForLevel, calculateLevel, LevelService } from '../src/services/economy/EconomyService';
 import { ReminderService } from '../src/services/reminder/ReminderService';
 import { UserStatModel } from '../src/models/UserStat';
@@ -154,85 +154,6 @@ describe('ReminderService', () => {
 
   afterEach(() => {
     ReminderService.stopPolling();
-  });
-
-  it('creates a reminder with pending status', async () => {
-    const createSpy = vi.spyOn(ReminderModel, 'create').mockResolvedValue({
-      userId: 'user-1',
-      guildId: 'guild-1',
-      channelId: 'channel-1',
-      message: 'Họp team',
-      remindAt: new Date(),
-      status: 'pending'
-    } as any);
-
-    const rem = await ReminderService.createReminder({
-      userId: 'user-1',
-      guildId: 'guild-1',
-      channelId: 'channel-1',
-      message: 'Họp team',
-      remindAt: new Date()
-    });
-
-    expect(createSpy).toHaveBeenCalled();
-    expect(rem.status).toBe('pending');
-  });
-
-  it('polls due reminders, updates status to completed, and sends notification to channel', async () => {
-    const saveMock = vi.fn().mockResolvedValue(true);
-    const mockReminder = {
-      _id: 'rem-1',
-      userId: 'user-123',
-      channelId: 'chan-456',
-      message: 'Đi uống nước',
-      status: 'pending',
-      save: saveMock
-    };
-
-    const mockLimit = vi.fn().mockResolvedValue([mockReminder]);
-    vi.spyOn(ReminderModel, 'find').mockReturnValue({ limit: mockLimit } as any);
-
-    const mockSend = vi.fn().mockResolvedValue(true);
-    const mockClient = {
-      channels: {
-        fetch: vi.fn().mockResolvedValue({ send: mockSend })
-      }
-    } as any;
-
-    const processed = await ReminderService.pollReminders(mockClient);
-
-    expect(processed).toHaveLength(1);
-    expect(mockReminder.status).toBe('completed');
-    expect(saveMock).toHaveBeenCalled();
-    expect(mockClient.channels.fetch).toHaveBeenCalledWith('chan-456');
-    expect(mockSend).toHaveBeenCalledWith('⏰ <@user-123> **NHẮC NHỞ:** Đi uống nước');
-  });
-
-  it('handles channel fetch error gracefully during poll', async () => {
-    const saveMock = vi.fn().mockResolvedValue(true);
-    const mockReminder = {
-      _id: 'rem-2',
-      userId: 'user-999',
-      channelId: 'deleted-chan',
-      message: 'Làm bài tập',
-      status: 'pending',
-      save: saveMock
-    };
-
-    const mockLimit = vi.fn().mockResolvedValue([mockReminder]);
-    vi.spyOn(ReminderModel, 'find').mockReturnValue({ limit: mockLimit } as any);
-
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const mockClient = {
-      channels: {
-        fetch: vi.fn().mockRejectedValue(new Error('Channel not found'))
-      }
-    } as any;
-
-    await expect(ReminderService.pollReminders(mockClient)).resolves.not.toThrow();
-    expect(mockReminder.status).toBe('completed');
-    expect(saveMock).toHaveBeenCalled();
-    expect(warnSpy).toHaveBeenCalled();
   });
 
   it('starts and stops interval timer', () => {

@@ -75,7 +75,8 @@ useHead({ script: [{ type: 'application/ld+json', innerHTML: JSON.stringify({
           <div class="feature-icon"><Dices :size="27" /></div>
           <p class="feature-index">03 — PLAY</p>
           <h3>Chơi ngay trong cuộc trò chuyện</h3>
-          <p>Vòng quay, nối từ và bầu cua giúp cả server có lý do để cùng tham gia. Dùng trực tiếp bằng slash command.</p>
+          <p>Cờ 3×3 và oẳn tù tì chơi chung một ván trên web và Discord. Vòng quay, nối từ và bầu cua giúp cả server cùng tham gia.</p>
+          <router-link to="/games/new">Mở game UI <ArrowUpRight :size="16" /></router-link>
         </article>
       </div>
     </section>

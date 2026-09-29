@@ -2,7 +2,7 @@
 
 **Bot Discord cho cộng đồng: thống kê hoạt động, mini-game và dashboard dữ liệu trực tiếp.**
 
-[Thêm vào server](https://discord.com/oauth2/authorize?client_id=1553723429423808572&scope=bot%20applications.commands&permissions=3230720) · [Dashboard](https://sentinel-dashboard.thienhn.io.vn/dashboard) · [Xếp hạng đầy đủ](https://sentinel-dashboard.thienhn.io.vn/dashboard/rankings) · [Quản trị server](https://sentinel-dashboard.thienhn.io.vn/dashboard/manage) · [Hướng dẫn lệnh](https://sentinel-dashboard.thienhn.io.vn/commands) · [Trạng thái API](https://sentinel-bot.thienhn.io.vn/api/health)
+[Thêm vào server](https://discord.com/oauth2/authorize?client_id=1553723429423808572&scope=bot%20applications.commands&permissions=3230720) · [Dashboard](https://sentinel-dashboard.thienhn.io.vn/dashboard) · [Game UI](https://sentinel-dashboard.thienhn.io.vn/games/new) · [Xếp hạng đầy đủ](https://sentinel-dashboard.thienhn.io.vn/dashboard/rankings) · [Quản trị server](https://sentinel-dashboard.thienhn.io.vn/dashboard/manage) · [Hướng dẫn lệnh](https://sentinel-dashboard.thienhn.io.vn/commands) · [Trạng thái API](https://sentinel-bot.thienhn.io.vn/api/health)
 
 Sentinel ghi nhận hoạt động mà bot quan sát được trong từng server Discord và hiển thị qua website. Repo chứa bot, API và frontend trong một pnpm workspace. Phiên bản hiện tại: **1.0.0**.
 
@@ -10,27 +10,38 @@ Sentinel ghi nhận hoạt động mà bot quan sát được trong từng serve
 
 - **Thống kê chat:** số tin nhắn theo thành viên, bảng xếp hạng, từ xuất hiện thường xuyên và biểu đồ theo giờ.
 - **Thống kê voice:** thời gian phiên đã kết thúc, thời gian phiên đang tham gia dưới dạng ước tính, lượt vào voice và bảng xếp hạng.
-- **Mini-game:** vòng quay chia sẻ giữa Discord và web, nối từ tiếng Việt, bầu cua bằng DNE Coins.
+- **Mini-game:** vòng quay 3D; cờ 3×3 và oẳn tù tì có giao diện web, nút Discord và cùng một phiên; nối từ và bầu cua trong Discord.
 - **Dashboard:** lấy dữ liệu từ Discord và MongoDB qua API, tự làm mới mỗi 30 giây và hỗ trợ chọn server.
 - **Xếp hạng đầy đủ:** phân trang theo tin nhắn, thời gian voice đã lưu và XP/cấp độ; dữ liệu được truy vấn trực tiếp theo server.
+- **Lệnh tiện ích:** `/serverstats` xem số liệu cộng dồn của server; `/remind` đặt, xem và hủy lời nhắc cá nhân qua DM.
 - **Quản trị server:** đăng nhập Discord để chỉnh lời chào voice và kênh nhận báo cáo; chủ server hoặc người có quyền Manage Server được kiểm tra lại khi đọc và lưu.
-- **Báo cáo tuần:** gửi top chat/voice cộng dồn vào kênh đã chọn, thứ Hai lúc 09:00–18:00 giờ Việt Nam; mỗi tuần có bản ghi chống gửi trùng.
+- **Báo cáo tuần:** gửi top chat/voice cộng dồn vào kênh đã chọn từ 09:00 thứ Hai giờ Việt Nam; nếu gửi lỗi, thử lại mỗi giờ đến 18:00 và lưu bản ghi để hạn chế gửi trùng.
 - **Vận hành:** health endpoint, telemetry CPU/bộ nhớ, lưu phiên voice và khôi phục trạng thái sau khi bot khởi động lại.
 
 > Số liệu bắt đầu từ lúc bot quan sát được hoạt động; bot không đọc ngược lịch sử tin nhắn hoặc voice của Discord. Website công khai số liệu tổng hợp và bảng xếp hạng của server mà bot đã tham gia. Xem [Chính sách quyền riêng tư](https://sentinel-dashboard.thienhn.io.vn/privacy) để biết dữ liệu được xử lý và thời gian lưu.
 
 ## Lệnh Discord
 
+Bot đăng ký **7 slash command cấp cao nhất**: `/random`, `/game`, `/stats`, `/serverstats`, `/remind`, `/leaderboard` và `/help`. `/game` có sáu subcommand: `wordchain`, `noitu` (bí danh), `baucua`, `tictactoe`, `rps` và `open`.
+
 | Lệnh | Chức năng |
 | --- | --- |
 | `/random items:<các mục>` | Tạo vòng quay; quay trong Discord hoặc mở phiên trên web. |
-| `/game wordchain word:<từ>` | Chơi nối từ theo kênh (`/game noitu` là tên thay thế). |
+| `/game wordchain word:<từ>` | Chơi nối từ theo kênh; có thể dùng `/game noitu word:<từ>` thay thế. |
 | `/game baucua item:<mặt> bet:<xu>` | Chơi bầu cua với DNE Coins trong server. |
-| `/stats` | Xem thống kê chat, voice, XP và xu của chính mình. |
-| `/leaderboard type:<chat\|voice>` | Xem top thành viên theo tin nhắn hoặc thời gian voice. |
+| `/game tictactoe` | Tạo ván cờ 3×3 hai người với nút đánh ô; có thể tiếp tục trên web. |
+| `/game rps` | Tạo ván oẳn tù tì hai người; mỗi người chọn kín qua nút riêng. |
+| `/game open id:<mã ván>` | Mở ván tạo trên web trong Discord. Chỉ người chơi thuộc đúng server được mở. |
+| `/stats` | Xem thống kê chat, voice đã lưu và ước tính phiên đang tham gia, XP và xu của chính mình. |
+| `/serverstats` | Xem số thành viên hiện tại, tổng tin nhắn cộng dồn và voice đã lưu/đang tham gia (ước tính) của server; có link dashboard. |
+| `/remind set in:<10m\|2h\|1d> text:<nội dung>` | Đặt lời nhắc từ 1 phút đến 7 ngày; bot gửi DM cho bạn khi đến giờ. |
+| `/remind list` · `/remind cancel id:<mã>` | Xem lời nhắc đang chờ hoặc DM gửi thất bại; hủy lời nhắc của chính mình. Tối đa 10 lời nhắc đang chờ/người. |
+| `/leaderboard type:<chat\|voice>` | Xem top 10 theo tin nhắn hoặc thời gian voice trong server. |
 | `/help` | Xem danh sách lệnh bot đã đăng ký. |
 
 Ví dụ tham số và hướng dẫn cài bot có tại [trang lệnh](https://sentinel-dashboard.thienhn.io.vn/commands). Để điền hồ sơ ứng dụng Discord, xem [hướng dẫn Developer Portal](docs/discord-developer-portal.md).
+
+**Game UI:** `/random` có vòng quay 3D trên web và nút quay nhanh trong Discord. Cờ 3×3 và oẳn tù tì dùng một phiên chung giữa web và Discord; người chơi cần đăng nhập Discord và vẫn thuộc server để thao tác trên web. Ván chờ hết hạn sau 15 phút, ván đang chơi sau 30 phút không có lượt hợp lệ; dữ liệu phiên được xóa khoảng 24 giờ sau khi kết thúc. Hai game này chỉ chơi vui, không thưởng XP hoặc DNE Coins. Nối từ và bầu cua trả kết quả trong Discord, chưa có trang UI riêng.
 
 ## Cấu trúc dự án
 
@@ -116,6 +127,8 @@ Lệnh SEO chạy sau khi build web; nó kiểm tra các trang HTML đã tạo, 
 | `GET /api/guilds/:guildId/leaderboard` | Bảng xếp hạng đã lưu. |
 | `GET /api/guilds/:guildId/rankings` | Bảng xếp hạng phân trang theo tin nhắn, voice hoặc XP. |
 | `GET /api/guilds/:guildId/wordcloud` | Tần suất từ đã ghi nhận. |
+| `GET /api/games/:sessionId` | Trạng thái ván, chỉ trả lựa chọn oẳn tù tì phù hợp với người xem. |
+| `POST /api/games` · `POST /api/games/:sessionId/actions` | Tạo và chơi qua phiên Discord, Origin/CSRF và kiểm tra thành viên server. |
 
 Các đường dẫn `/api/auth/*` và `/api/admin/*` phục vụ đăng nhập Discord và cấu hình riêng của server. Ghi cấu hình cần cookie phiên, Origin hợp lệ và CSRF token. Danh sách server quản trị được lấy từ các server trả về lúc đăng nhập; nếu quyền hoặc thành viên mới thay đổi, hãy đăng xuất rồi đăng nhập lại để làm mới danh sách.
 

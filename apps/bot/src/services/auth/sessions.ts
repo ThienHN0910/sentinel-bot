@@ -23,17 +23,18 @@ function sessionHash(value: string): string {
   return createHmac('sha256', secret).update(value).digest('hex');
 }
 
-export async function createOAuthState(): Promise<string> {
+export async function createOAuthState(returnPath?: string): Promise<string> {
   const value = randomBytes(32).toString('base64url');
-  await AuthStateModel.create({ stateHash: stateHash(value), expiresAt: new Date(Date.now() + STATE_MINUTES * 60_000) });
+  await AuthStateModel.create({ stateHash: stateHash(value), returnPath: returnPath ?? null,
+    expiresAt: new Date(Date.now() + STATE_MINUTES * 60_000) });
   return value;
 }
 
-export async function consumeOAuthState(value: string, cookieValue: string | undefined): Promise<boolean> {
+export async function consumeOAuthState(value: string, cookieValue: string | undefined): Promise<{ valid: boolean; returnPath: string | null }> {
   if (!/^[A-Za-z0-9_-]{40,60}$/.test(value) || !cookieValue || cookieValue.length !== value.length ||
-    !timingSafeEqual(Buffer.from(value), Buffer.from(cookieValue))) return false;
+    !timingSafeEqual(Buffer.from(value), Buffer.from(cookieValue))) return { valid: false, returnPath: null };
   const found = await AuthStateModel.findOneAndDelete({ stateHash: stateHash(value), expiresAt: { $gt: new Date() } }).lean();
-  return !!found;
+  return { valid: !!found, returnPath: found?.returnPath ?? null };
 }
 
 export async function createSession(user: DiscordIdentity, oauthGuilds: OAuthGuild[]): Promise<string> {

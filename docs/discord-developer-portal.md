@@ -1,12 +1,12 @@
 # Điền Discord Developer Portal cho Sentinel Bot
 
-Cập nhật: 27/09/2026. Mở ứng dụng có Application ID `1553723429423808572` tại [Discord Developer Portal](https://discord.com/developers/applications), rồi điền các mục sau.
+Cập nhật: 29/09/2026. Mở ứng dụng có Application ID `1553723429423808572` tại [Discord Developer Portal](https://discord.com/developers/applications), rồi điền các mục sau.
 
 | Mục | Giá trị nên điền |
 | --- | --- |
 | **App Icon** | Tải file [`apps/web/public/sentinel-icon.png`](../apps/web/public/sentinel-icon.png) lên. File PNG 1024 × 1024, khoảng 2.2 MB, đúng giới hạn trong giao diện bạn gửi. |
 | **Name** | `Sentinel Bot` |
-| **Description** | `Sentinel giúp cộng đồng Discord theo dõi hoạt động, chào thành viên trong voice và chơi mini-game. Xem dashboard trực tiếp, tạo vòng quay bằng /random, chơi nối từ hoặc bầu cua bằng /game. Cài nhanh, dễ dùng và luôn hiển thị dữ liệu thật của server.` |
+| **Description** | `Sentinel giúp cộng đồng Discord theo dõi chat, voice và chơi mini-game. Xem dashboard trực tiếp, vòng quay /random, game /game, thống kê server /serverstats và nhắc việc riêng qua DM bằng /remind. Dữ liệu hiển thị theo hoạt động bot thực sự ghi nhận.` |
 | **Tags** | `Utility`, `Community`, `Games`, `Analytics`, `Voice`. Nếu giao diện chỉ cho chọn từ danh sách có sẵn, chọn các nhãn gần nhất với 5 chủ đề này. |
 | **Terms of Service URL** | `https://sentinel-dashboard.thienhn.io.vn/terms` |
 | **Privacy Policy URL** | `https://sentinel-dashboard.thienhn.io.vn/privacy` |
@@ -20,8 +20,11 @@ Mô tả trên dưới 400 ký tự và chỉ nhắc các lệnh bot hiện đă
 - **Install Count / Authorization Count:** Discord tự cập nhật. Không nhập thủ công.
 - **Interactions Endpoint URL:** để trống. Chỉ điền nếu sau này chuyển sang nhận interaction bằng HTTP POST và triển khai endpoint xác minh chữ ký Discord.
 - **Linked Roles Verification URL:** để trống. Ứng dụng hiện không triển khai Linked Roles.
+- **Activities / URL Mapping:** không cần bật cho `/remind`, `/serverstats` hoặc nút tương tác của bot; đây là slash command và message component qua Gateway.
 
 ## Installation và Bot
+
+Các nút cờ 3×3 và oẳn tù tì dùng message components qua Gateway. Không cần bật Discord Activity, Embedded App SDK, URL Mapping hay thêm Interactions Endpoint. Trang game web dùng cùng OAuth2 Redirect đã nêu bên dưới; người chơi đăng nhập với scope `identify` và `guilds`, sau đó API kiểm tra thành viên server ở mỗi thao tác. Không cần thêm intent hoặc scope mới cho hai game này.
 
 1. Trong tab **Installation**, bật **Guild Install**. Đặt scope `bot` và `applications.commands`, cùng quyền tối thiểu tương ứng: View Channels, Send Messages, Embed Links, Read Message History, Connect và Speak. Không cần quyền Administrator.
 2. Nếu muốn người khác tự cài bot, kiểm tra tùy chọn **Public Bot** trong tab **Bot** đang bật. Nếu chỉ thử nghiệm nội bộ, giữ theo lựa chọn của bạn.

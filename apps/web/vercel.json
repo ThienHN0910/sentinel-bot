@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": true,
   "rewrites": [
-    { "source": "/games/:sessionId", "destination": "/index.html" }
+    { "source": "/games/:sessionId", "destination": "/" }
   ],
   "headers": [
     { "source": "/games/:sessionId", "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }] }

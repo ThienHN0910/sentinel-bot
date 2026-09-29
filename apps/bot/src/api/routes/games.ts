@@ -5,6 +5,7 @@ import { AuthFailure, requireSession, verifyMutation } from '../../services/auth
 import { authorizeGuildMember, GuildMembershipError } from '../../services/auth/guildMembership';
 import { GameSessionError, createGameSession, getGameSession, actOnGameSession } from '../../services/game/GameSessionService';
 import { GameRuleError } from '../../services/game/sessionRules';
+import { syncGameMessage } from '../../commands/gameSessions';
 
 const RATE_LIMIT = { max: 20, timeWindow: '1 minute' } as const;
 
@@ -70,7 +71,9 @@ export async function registerGameRoutes(app: FastifyInstance, client?: Client) 
       if (!validAction(request.body)) return reply.code(400).send({ error: 'Invalid game action' });
       const current = await getGameSession(sessionId, session.userId);
       await authorizeGuildMember(client, current.guildId, session.userId);
-      return await actOnGameSession(sessionId, session.userId, request.body);
+      const updated = await actOnGameSession(sessionId, session.userId, request.body);
+      await syncGameMessage(client, updated).catch(error => app.log.warn({ error }, 'Could not update Discord game message'));
+      return updated;
     } catch (error) { return sendFailure(error, reply); }
   });
 }

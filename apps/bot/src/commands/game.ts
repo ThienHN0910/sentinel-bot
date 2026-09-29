@@ -10,6 +10,7 @@ import {
   type BauCuaItem
 } from '../services/game/BauCuaGame';
 import { UserStatModel } from '../models/UserStat';
+import { handleNewGameCommand, handleOpenGameCommand } from './gameSessions';
 
 export async function handleWordChainCommand(interaction: ChatInputCommandInteraction) {
   const word = interaction.options.getString('word', true);
@@ -88,6 +89,9 @@ export async function handleBauCuaCommand(interaction: ChatInputCommandInteracti
 
 export async function handleGameCommand(interaction: ChatInputCommandInteraction) {
   const subcommand = interaction.options.getSubcommand(false);
+
+  if (subcommand === 'tictactoe' || subcommand === 'rps') return handleNewGameCommand(interaction);
+  if (subcommand === 'open') return handleOpenGameCommand(interaction);
 
   if (subcommand === 'wordchain' || subcommand === 'noitu') {
     return handleWordChainCommand(interaction);

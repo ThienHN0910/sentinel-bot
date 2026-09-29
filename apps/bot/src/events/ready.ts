@@ -47,7 +47,11 @@ export const slashCommands = [
         .addIntegerOption((opt) =>
           opt.setName('bet').setDescription('Số DNE Coins cược').setRequired(true).setMinValue(1)
         )
-    ),
+    )
+    .addSubcommand((sub) => sub.setName('tictactoe').setDescription('Chơi cờ 3×3 cùng một người khác'))
+    .addSubcommand((sub) => sub.setName('rps').setDescription('Chơi oẳn tù tì chọn kín'))
+    .addSubcommand((sub) => sub.setName('open').setDescription('Mở ván tạo trên web trong Discord')
+      .addStringOption((opt) => opt.setName('id').setDescription('Mã ván 21 ký tự').setRequired(true))),
   new SlashCommandBuilder().setName('stats').setDescription('Xem thống kê hoạt động của bạn trong server'),
   new SlashCommandBuilder().setName('serverstats').setDescription('Xem thống kê cộng dồn của server'),
   new SlashCommandBuilder()

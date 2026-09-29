@@ -6,6 +6,7 @@ import { handleLeaderboardCommand } from '../commands/leaderboard.js';
 import { handleHelpCommand } from '../commands/help.js';
 import { handleRemindCommand } from '../commands/remind.js';
 import { handleServerStatsCommand } from '../commands/serverstats.js';
+import { handleGameButton } from '../commands/gameSessions.js';
 
 /**
  * interactionCreate event handler.
@@ -56,6 +57,10 @@ export async function onInteractionCreate(interaction: Interaction): Promise<voi
 
   // ── Button Interactions ───────────────────────────────────────────────────
   if (interaction.isButton()) {
+    if (interaction.customId.startsWith('game:')) {
+      await handleGameButton(interaction);
+      return;
+    }
     if (interaction.customId.startsWith('spin_quick_')) {
       await handleQuickSpinButton(interaction);
       return;

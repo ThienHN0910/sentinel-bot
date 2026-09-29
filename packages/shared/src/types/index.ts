@@ -101,3 +101,4 @@ export type WheelSocketEvent =
   | { event: 'STATE_SYNC'; session: IWheelSession };
 
 export type WheelEventPayload = WheelSocketEvent;
+export * from './game';

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import { Sparkles, Activity, Users, Hash, Mic2 } from 'lucide-vue-next';
 import { useDensityStore } from '../stores/density';
 import DensityToggle from '../components/DensityToggle.vue';
@@ -13,6 +14,7 @@ import { usePageSeo } from '../seo';
 usePageSeo('Dashboard trực tiếp | Sentinel Bot', 'Số liệu hoạt động Discord theo thời gian thực từ Sentinel Bot.', '/dashboard', false);
 
 const density = useDensityStore();
+const route = useRoute();
 const guilds = ref<{ id: string; name: string }[]>([]);
 const selectedGuildId = ref('');
 const dashboard = ref<DashboardData | null>(null);
@@ -62,8 +64,10 @@ onMounted(async () => {
   try {
     const result = await getJson<{ guilds: { id: string; name: string }[] }>('/api/guilds');
     guilds.value = result.guilds;
+    const requested = typeof route.query.guild === 'string' ? route.query.guild : '';
     const saved = localStorage.getItem('sentinel.guildId');
-    selectedGuildId.value = guilds.value.find((guild) => guild.id === saved)?.id ?? guilds.value[0]?.id ?? '';
+    selectedGuildId.value = guilds.value.find((guild) => guild.id === requested)?.id ??
+      guilds.value.find((guild) => guild.id === saved)?.id ?? guilds.value[0]?.id ?? '';
     if (!selectedGuildId.value) loading.value = false;
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : 'Could not load guilds';

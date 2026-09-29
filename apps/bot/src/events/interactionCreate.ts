@@ -5,6 +5,7 @@ import { handleStatsCommand } from '../commands/stats.js';
 import { handleLeaderboardCommand } from '../commands/leaderboard.js';
 import { handleHelpCommand } from '../commands/help.js';
 import { handleRemindCommand } from '../commands/remind.js';
+import { handleServerStatsCommand } from '../commands/serverstats.js';
 
 /**
  * interactionCreate event handler.
@@ -32,6 +33,11 @@ export async function onInteractionCreate(interaction: Interaction): Promise<voi
 
     if (commandName === 'remind') {
       await handleRemindCommand(interaction);
+      return;
+    }
+
+    if (commandName === 'serverstats') {
+      await handleServerStatsCommand(interaction);
       return;
     }
 

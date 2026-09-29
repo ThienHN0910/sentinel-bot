@@ -49,6 +49,7 @@ export const slashCommands = [
         )
     ),
   new SlashCommandBuilder().setName('stats').setDescription('Xem thống kê hoạt động của bạn trong server'),
+  new SlashCommandBuilder().setName('serverstats').setDescription('Xem thống kê cộng dồn của server'),
   new SlashCommandBuilder()
     .setName('remind')
     .setDescription('Tạo và quản lý lời nhắc cá nhân qua DM')

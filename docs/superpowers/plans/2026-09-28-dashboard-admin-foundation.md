@@ -1,5 +1,7 @@
 # Dashboard Rankings and Server Administration Implementation Plan
 
+> Trạng thái: đã phát hành trên `main` qua PR #3 và PR #4 ngày 2026-09-28. Đây là kế hoạch triển khai lịch sử; các ô kiểm bên dưới ghi các bước dự kiến, không phản ánh tiến độ hiện tại. `/remind`, `/serverstats`, cờ 3×3 và oẳn tù tì được phát hành sau đó qua PR #8 và #9. Phần chào thành viên và thông báo tùy server còn ở [kế hoạch khám phá đợt sau](2026-09-28-next-features-discovery.md).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Let visitors browse full chat, completed-voice, and XP rankings while authorized server managers configure voice greetings and cumulative weekly reports through Discord login.

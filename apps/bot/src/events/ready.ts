@@ -50,6 +50,15 @@ export const slashCommands = [
     ),
   new SlashCommandBuilder().setName('stats').setDescription('Xem thống kê hoạt động của bạn trong server'),
   new SlashCommandBuilder()
+    .setName('remind')
+    .setDescription('Tạo và quản lý lời nhắc cá nhân qua DM')
+    .addSubcommand((sub) => sub.setName('set').setDescription('Tạo lời nhắc qua DM')
+      .addStringOption((option) => option.setName('in').setDescription('Sau bao lâu: 10m, 2h hoặc 1d').setRequired(true))
+      .addStringOption((option) => option.setName('text').setDescription('Nội dung nhắc nhở').setRequired(true).setMaxLength(200)))
+    .addSubcommand((sub) => sub.setName('list').setDescription('Xem lời nhắc đang chờ và gửi thất bại'))
+    .addSubcommand((sub) => sub.setName('cancel').setDescription('Hủy lời nhắc đang chờ')
+      .addStringOption((option) => option.setName('id').setDescription('Mã lời nhắc').setRequired(true))),
+  new SlashCommandBuilder()
     .setName('leaderboard')
     .setDescription('Xem bảng xếp hạng chat hoặc voice trong server')
     .addStringOption((option) => option

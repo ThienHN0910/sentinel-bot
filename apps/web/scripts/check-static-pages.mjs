@@ -9,7 +9,8 @@ const pages = [
   ['privacy.html', '/privacy', 'Chính sách', 'index,follow'],
   ['terms.html', '/terms', 'Điều khoản', 'index,follow'],
   ['dashboard.html', '/dashboard', 'Loading live data', 'noindex,follow'],
-  ['wheel.html', '/wheel', 'Vòng quay', 'noindex,follow']
+  ['wheel.html', '/wheel', 'Vòng quay', 'noindex,follow'],
+  ['games/new.html', '/games/new', 'Chơi cùng server', 'noindex,follow']
 ];
 
 for (const [file, path, content, robots] of pages) {

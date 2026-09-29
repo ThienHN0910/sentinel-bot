@@ -1,4 +1,4 @@
-import type { GuildSettingsInput, GuildSettingsResponse, RankingMetric, RankingPage } from '@sentinel/shared';
+import type { GameAction, GameKind, GameSessionView, GuildSettingsInput, GuildSettingsResponse, RankingMetric, RankingPage } from '@sentinel/shared';
 
 const configured = import.meta.env.VITE_API_URL?.trim();
 export const API_BASE_URL = (configured || 'https://sentinel-bot.thienhn.io.vn').replace(/\/$/, '');
@@ -58,4 +58,20 @@ export function patchGuildSettings(guildId: string, input: GuildSettingsInput, c
 
 export function logoutSession(csrfToken: string): Promise<void> {
   return requestJson('/api/auth/logout', { method: 'POST', headers: { 'x-csrf-token': csrfToken } });
+}
+
+export function getGameSession(sessionId: string): Promise<GameSessionView> {
+  return getJson(`/api/games/${encodeURIComponent(sessionId)}`);
+}
+
+export function createGameSession(guildId: string, kind: GameKind, csrfToken: string): Promise<GameSessionView> {
+  return requestJson('/api/games', { method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-csrf-token': csrfToken },
+    body: JSON.stringify({ guildId, kind }) });
+}
+
+export function actOnGameSession(sessionId: string, action: GameAction, csrfToken: string): Promise<GameSessionView> {
+  return requestJson(`/api/games/${encodeURIComponent(sessionId)}/actions`, { method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-csrf-token': csrfToken },
+    body: JSON.stringify(action) });
 }

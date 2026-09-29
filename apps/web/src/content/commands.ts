@@ -8,6 +8,27 @@ export interface CommandDoc {
 
 export const commands: CommandDoc[] = [
   {
+    name: 'Cờ 3×3',
+    syntax: '/game tictactoe',
+    summary: 'Tạo ván hai người trong server. Người khác bấm Tham gia rồi hai bên đánh ô bằng nút Discord hoặc trên web.',
+    example: '/game tictactoe',
+    note: 'Người tạo là X và đánh trước. Chơi cùng một ván tại /games/<mã>; không thưởng XP hay xu.'
+  },
+  {
+    name: 'Oẳn tù tì',
+    syntax: '/game rps',
+    summary: 'Tạo ván hai người. Mỗi người bấm Chọn kín và chọn búa, bao hoặc kéo; chỉ hiện lựa chọn sau khi cả hai đã chọn.',
+    example: '/game rps',
+    note: 'Ván dùng chung với web, không cược hoặc thưởng xu.'
+  },
+  {
+    name: 'Mở ván web trong Discord',
+    syntax: '/game open id:<mã ván>',
+    summary: 'Gắn ván bạn đã tạo trên web vào một kênh Discord để chơi tiếp bằng nút.',
+    example: '/game open id:abcdefghijklmnopqrstu',
+    note: 'Chỉ người chơi trong đúng server được mở. Ván chờ 15 phút, ván đang chơi hết hạn sau 30 phút không có lượt.'
+  },
+  {
     name: 'Vòng quay',
     syntax: '/random items:<mục 1, mục 2, ...>',
     summary: 'Tạo vòng quay từ ít nhất hai mục. Bot gửi nút quay nhanh trong Discord và liên kết tới vòng quay trên web.',

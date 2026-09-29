@@ -24,6 +24,8 @@ Mô tả trên dưới 400 ký tự và chỉ nhắc các lệnh bot hiện đă
 
 ## Installation và Bot
 
+Các nút cờ 3×3 và oẳn tù tì dùng message components qua Gateway. Không cần bật Discord Activity, Embedded App SDK, URL Mapping hay thêm Interactions Endpoint. Trang game web dùng cùng OAuth2 Redirect đã nêu bên dưới; người chơi đăng nhập với scope `identify` và `guilds`, sau đó API kiểm tra thành viên server ở mỗi thao tác. Không cần thêm intent hoặc scope mới cho hai game này.
+
 1. Trong tab **Installation**, bật **Guild Install**. Đặt scope `bot` và `applications.commands`, cùng quyền tối thiểu tương ứng: View Channels, Send Messages, Embed Links, Read Message History, Connect và Speak. Không cần quyền Administrator.
 2. Nếu muốn người khác tự cài bot, kiểm tra tùy chọn **Public Bot** trong tab **Bot** đang bật. Nếu chỉ thử nghiệm nội bộ, giữ theo lựa chọn của bạn.
 3. Bật **Message Content Intent** và **Server Members Intent** trong tab **Bot** vì tiến trình hiện yêu cầu hai gateway intent này. Discord có thể áp dụng yêu cầu phê duyệt riêng khi ứng dụng đạt ngưỡng xác minh.

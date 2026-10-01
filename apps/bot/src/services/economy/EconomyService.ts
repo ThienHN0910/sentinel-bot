@@ -43,21 +43,69 @@ export class LevelService {
 }
 
 export class EconomyService {
-  public static async claimDaily(guildId: string, userId: string, username?: string) {
+  public static async getDailyStatus(guildId: string, userId: string, now: Date = new Date()): Promise<{
+    canClaim: boolean;
+    hoursRemaining: number;
+    minutesRemaining: number;
+    currentStreak: number;
+    dneCoins: number;
+  }> {
     const stat = await UserStatModel.findOne({ guildId, userId });
-    const { newStreak, rewardCoins } = calculateDailyStreak(stat?.dailyStreak || 0, stat?.lastDailyAt);
+    const dneCoins = stat?.dneCoins ?? 0;
+    const rawStreak = stat?.dailyStreak ?? 0;
+
+    if (!stat?.lastDailyAt) {
+      return {
+        canClaim: true,
+        hoursRemaining: 0,
+        minutesRemaining: 0,
+        currentStreak: rawStreak,
+        dneCoins
+      };
+    }
+
+    const elapsedMs = now.getTime() - stat.lastDailyAt.getTime();
+    const cooldownMs = 20 * 3600 * 1000;
+
+    if (elapsedMs < cooldownMs) {
+      const remainingMs = cooldownMs - elapsedMs;
+      const totalMinutes = Math.max(0, Math.ceil(remainingMs / (60 * 1000)));
+      return {
+        canClaim: false,
+        hoursRemaining: Math.floor(totalMinutes / 60),
+        minutesRemaining: totalMinutes % 60,
+        currentStreak: rawStreak,
+        dneCoins
+      };
+    }
+
+    const isBroken = elapsedMs > 48 * 3600 * 1000;
+    return {
+      canClaim: true,
+      hoursRemaining: 0,
+      minutesRemaining: 0,
+      currentStreak: isBroken ? 0 : rawStreak,
+      dneCoins
+    };
+  }
+
+  public static async claimDaily(guildId: string, userId: string, username?: string, now: Date = new Date()) {
+    const stat = await UserStatModel.findOne({ guildId, userId });
+    const { newStreak, rewardCoins } = calculateDailyStreak(stat?.dailyStreak || 0, stat?.lastDailyAt, now);
+
+    const totalCoins = (stat?.dneCoins || 0) + rewardCoins;
 
     await UserStatModel.findOneAndUpdate(
       { guildId, userId },
       {
         $inc: { dneCoins: rewardCoins },
-        $set: { dailyStreak: newStreak, lastDailyAt: new Date(), updatedAt: new Date() },
+        $set: { dailyStreak: newStreak, lastDailyAt: now, updatedAt: now },
         $setOnInsert: { username: username || stat?.username || userId }
       },
       { upsert: true }
     );
 
-    return { streak: newStreak, reward: rewardCoins };
+    return { streak: newStreak, reward: rewardCoins, totalCoins };
   }
 
   public static async transferCoins(guildId: string, fromId: string, toId: string, amount: number) {

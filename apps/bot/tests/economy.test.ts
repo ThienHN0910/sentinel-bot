@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { calculateDailyStreak, EconomyService, expForLevel, calculateLevel, LevelService } from '../src/services/economy/EconomyService';
 import { ReminderService } from '../src/services/reminder/ReminderService';
 import { UserStatModel } from '../src/models/UserStat';
@@ -68,12 +68,77 @@ describe('EconomyService - claimDaily & transfer', () => {
     expect(result.reward).toBe(120);
 
     expect(updateSpy).toHaveBeenCalledWith(
-      { guildId: 'guild-1', userId: 'user-1' },
+      {
+        guildId: 'guild-1',
+        userId: 'user-1',
+        $or: [
+          { lastDailyAt: { $exists: false } },
+          { lastDailyAt: { $lte: expect.any(Date) } }
+        ]
+      },
       expect.objectContaining({
         $inc: { dneCoins: 120 },
         $set: expect.objectContaining({ dailyStreak: 3 })
       }),
-      { upsert: true }
+      { new: true }
+    );
+  });
+
+  it('claims daily for first-time user and upserts record', async () => {
+    // Initial findOne sees no user
+    vi.spyOn(UserStatModel, 'findOne')
+      .mockResolvedValueOnce(null)
+      // Second findOne in fallback check confirms user doesn't exist yet
+      .mockResolvedValueOnce(null);
+
+    // Initial findOneAndUpdate returns null (no matching doc)
+    const updateSpy = vi.spyOn(UserStatModel, 'findOneAndUpdate')
+      .mockResolvedValueOnce(null)
+      // Second findOneAndUpdate executes upsert
+      .mockResolvedValueOnce({
+        guildId: 'guild-1',
+        userId: 'user-new',
+        dneCoins: 100,
+        dailyStreak: 1
+      } as any);
+
+    const result = await EconomyService.claimDaily('guild-1', 'user-new', 'Newbie');
+    expect(result.streak).toBe(1);
+    expect(result.reward).toBe(100);
+    expect(result.totalCoins).toBe(100);
+
+    expect(updateSpy).toHaveBeenNthCalledWith(
+      2,
+      { guildId: 'guild-1', userId: 'user-new' },
+      expect.objectContaining({
+        $inc: { dneCoins: 100 },
+        $set: expect.objectContaining({ dailyStreak: 1 })
+      }),
+      { upsert: true, new: true }
+    );
+  });
+
+  it('rejects concurrent claim when atomic filter fails on race condition', async () => {
+    const lastDailyAt = new Date(Date.now() - 25 * 3600 * 1000);
+    // Initial read allows claim
+    vi.spyOn(UserStatModel, 'findOne')
+      .mockResolvedValueOnce({
+        dailyStreak: 2,
+        lastDailyAt,
+        dneCoins: 300
+      } as any)
+      // Second read confirms user exists in DB
+      .mockResolvedValueOnce({
+        dailyStreak: 3,
+        lastDailyAt: new Date(),
+        dneCoins: 420
+      } as any);
+
+    // Atomic update returns null due to concurrent claim
+    vi.spyOn(UserStatModel, 'findOneAndUpdate').mockResolvedValueOnce(null);
+
+    await expect(EconomyService.claimDaily('guild-1', 'user-1')).rejects.toThrow(
+      'Bạn đã nhận điểm danh hôm nay rồi! Hãy quay lại sau.'
     );
   });
 

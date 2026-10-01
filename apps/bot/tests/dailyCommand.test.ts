@@ -153,12 +153,19 @@ describe('/daily slash command (handleDailyCommand)', () => {
     expect(balanceField?.value).toContain('420 DNE Coins');
 
     expect(updateSpy).toHaveBeenCalledWith(
-      { guildId: 'guild-1', userId: 'user-1' },
+      {
+        guildId: 'guild-1',
+        userId: 'user-1',
+        $or: [
+          { lastDailyAt: { $exists: false } },
+          { lastDailyAt: { $lte: expect.any(Date) } }
+        ]
+      },
       expect.objectContaining({
         $inc: { dneCoins: 120 },
         $set: expect.objectContaining({ dailyStreak: 3 })
       }),
-      { upsert: true }
+      { new: true }
     );
   });
 
@@ -224,13 +231,61 @@ describe('/daily slash command (handleDailyCommand)', () => {
     expect(rewardField?.value).toBe('+100 DNE Coins');
 
     expect(updateSpy).toHaveBeenCalledWith(
-      { guildId: 'guild-1', userId: 'user-1' },
+      {
+        guildId: 'guild-1',
+        userId: 'user-1',
+        $or: [
+          { lastDailyAt: { $exists: false } },
+          { lastDailyAt: { $lte: expect.any(Date) } }
+        ]
+      },
       expect.objectContaining({
         $inc: { dneCoins: 100 },
         $set: expect.objectContaining({ dailyStreak: 1 })
       }),
-      { upsert: true }
+      { new: true }
     );
+  });
+
+  it('handles race condition when concurrent claim causes atomic update to return null for existing user', async () => {
+    const lastDailyAt = new Date(Date.now() - 24 * 3600 * 1000);
+    // Initial findOne sees user as eligible
+    vi.spyOn(UserStatModel, 'findOne')
+      .mockResolvedValueOnce({
+        guildId: 'guild-1',
+        userId: 'user-1',
+        dailyStreak: 2,
+        lastDailyAt,
+        dneCoins: 300
+      } as any)
+      // Second findOne (after atomic update failure) finds user already claimed concurrently
+      .mockResolvedValueOnce({
+        guildId: 'guild-1',
+        userId: 'user-1',
+        dailyStreak: 3,
+        lastDailyAt: new Date(),
+        dneCoins: 420
+      } as any)
+      // Third findOne inside getDailyStatus
+      .mockResolvedValueOnce({
+        guildId: 'guild-1',
+        userId: 'user-1',
+        dailyStreak: 3,
+        lastDailyAt: new Date(),
+        dneCoins: 420
+      } as any);
+
+    // findOneAndUpdate returns null because cooldown condition failed concurrently
+    vi.spyOn(UserStatModel, 'findOneAndUpdate').mockResolvedValueOnce(null);
+
+    const interaction = mockInteraction('guild-1', 'user-1', 'Alice');
+    await handleDailyCommand(interaction);
+
+    expect(interaction.editReply).toHaveBeenCalled();
+    const editArgs = vi.mocked(interaction.editReply).mock.calls[0][0] as { embeds: any[] };
+    const embed = editArgs.embeds[0].data;
+    expect(embed.title).toMatch(/Điểm danh/i);
+    expect(embed.description).toMatch(/19 giờ 5[89] phút|20 giờ 0 phút/);
   });
 
   it('rejects execution outside of guild (DM) with ephemeral message', async () => {

@@ -63,6 +63,8 @@ export class RepService {
       };
     }
 
+    let updatedGiver: any = null;
+
     // Atomic update for giver
     if (needsReset) {
       await UserStatModel.findOneAndUpdate(
@@ -74,15 +76,24 @@ export class RepService {
         { upsert: true }
       );
     } else {
-      await UserStatModel.findOneAndUpdate(
-        { guildId, userId: giverId },
+      updatedGiver = await UserStatModel.findOneAndUpdate(
+        { guildId, userId: giverId, repGivenToday: { $lt: 3 } },
         {
           $inc: { repGivenToday: 1 },
           $set: { updatedAt: now },
           $setOnInsert: { username: giverUsername || giver?.username || giverId }
         },
-        { upsert: true }
+        { new: true }
       );
+
+      if (!updatedGiver) {
+        return {
+          success: false,
+          giverRemaining: 0,
+          receiverRepCount: 0,
+          error: 'Bạn đã dùng hết 3 lượt +rep hôm nay! Hãy quay lại vào ngày mai.'
+        };
+      }
     }
 
     // Atomic update for receiver (increment repCount)
@@ -96,7 +107,9 @@ export class RepService {
       { upsert: true, new: true }
     );
 
-    const giverRemaining = Math.max(0, 3 - (currentRepGivenToday + 1));
+    const giverRemaining = needsReset
+      ? 2
+      : Math.max(0, 3 - (updatedGiver?.repGivenToday ?? (currentRepGivenToday + 1)));
     const receiverRepCount = updatedReceiver?.repCount ?? 1;
 
     return {

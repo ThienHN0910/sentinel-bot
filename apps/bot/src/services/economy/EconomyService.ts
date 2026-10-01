@@ -94,18 +94,50 @@ export class EconomyService {
     const { newStreak, rewardCoins } = calculateDailyStreak(stat?.dailyStreak || 0, stat?.lastDailyAt, now);
 
     const totalCoins = (stat?.dneCoins || 0) + rewardCoins;
+    const twentyHoursAgo = new Date(now.getTime() - 20 * 3600 * 1000);
 
-    await UserStatModel.findOneAndUpdate(
-      { guildId, userId },
-      {
-        $inc: { dneCoins: rewardCoins },
-        $set: { dailyStreak: newStreak, lastDailyAt: now, updatedAt: now },
-        $setOnInsert: { username: username || stat?.username || userId }
-      },
-      { upsert: true }
+    const filter = {
+      guildId,
+      userId,
+      $or: [
+        { lastDailyAt: { $exists: false } },
+        { lastDailyAt: { $lte: twentyHoursAgo } }
+      ]
+    };
+
+    const update = {
+      $inc: { dneCoins: rewardCoins },
+      $set: { dailyStreak: newStreak, lastDailyAt: now, updatedAt: now },
+      $setOnInsert: { username: username || stat?.username || userId }
+    };
+
+    const updated = await UserStatModel.findOneAndUpdate(
+      filter,
+      update,
+      { new: true }
     );
 
-    return { streak: newStreak, reward: rewardCoins, totalCoins };
+    if (!updated) {
+      const existing = await UserStatModel.findOne({ guildId, userId });
+      if (existing) {
+        throw new Error('Bạn đã nhận điểm danh hôm nay rồi! Hãy quay lại sau.');
+      }
+
+      try {
+        const created = await UserStatModel.findOneAndUpdate(
+          { guildId, userId },
+          update,
+          { upsert: true, new: true }
+        );
+        const finalCoins = typeof created?.dneCoins === 'number' ? created.dneCoins : totalCoins;
+        return { streak: newStreak, reward: rewardCoins, totalCoins: finalCoins };
+      } catch (err: any) {
+        throw new Error('Bạn đã nhận điểm danh hôm nay rồi! Hãy quay lại sau.');
+      }
+    }
+
+    const finalCoins = typeof updated?.dneCoins === 'number' ? updated.dneCoins : totalCoins;
+    return { streak: newStreak, reward: rewardCoins, totalCoins: finalCoins };
   }
 
   public static async transferCoins(guildId: string, fromId: string, toId: string, amount: number) {

@@ -150,11 +150,24 @@ export class GachaService {
       updateOps.$set.lastGachaAt = now;
     }
 
+    const filter: any = { guildId, userId };
+    if (!isFree) {
+      filter.dneCoins = { $gte: cost };
+    }
+
     const updated = await UserStatModel.findOneAndUpdate(
-      { guildId, userId },
+      filter,
       updateOps,
-      { upsert: true, new: true }
+      { upsert: isFree, new: true }
     );
+
+    if (!updated && !isFree) {
+      const refreshed = await UserStatModel.findOne({ guildId, userId });
+      const latestBalance = refreshed?.dneCoins ?? 0;
+      throw new Error(
+        `Bạn không đủ DNE Coins! Cần 200 xu cho lượt quay này. Số dư hiện tại: ${latestBalance} xu`
+      );
+    }
 
     const newBalance = updated?.dneCoins ?? calculatedBalance;
 

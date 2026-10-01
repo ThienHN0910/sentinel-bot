@@ -174,13 +174,46 @@ describe('RepService.giveRep', () => {
     // Verify giver incremented without re-setting lastRepResetAt
     expect(UserStatModel.findOneAndUpdate).toHaveBeenNthCalledWith(
       1,
-      { guildId: 'guild-1', userId: 'giver-1' },
+      { guildId: 'guild-1', userId: 'giver-1', repGivenToday: { $lt: 3 } },
       {
         $inc: { repGivenToday: 1 },
         $set: { updatedAt: now },
         $setOnInsert: { username: 'giver-1' }
       },
-      { upsert: true }
+      { new: true }
+    );
+  });
+
+  it('rejects concurrent rep attempt when repGivenToday reaches 3 during race condition', async () => {
+    const now = new Date('2026-10-01T12:00:00.000Z');
+
+    // Giver read passes with repGivenToday = 2
+    vi.spyOn(UserStatModel, 'findOne').mockResolvedValueOnce({
+      guildId: 'guild-1',
+      userId: 'giver-1',
+      repGivenToday: 2,
+      lastRepResetAt: new Date('2026-10-01T08:00:00.000Z')
+    } as any);
+
+    // Atomic update fails because another concurrent call incremented to 3
+    const updateSpy = vi.spyOn(UserStatModel, 'findOneAndUpdate').mockResolvedValueOnce(null);
+
+    const result = await RepService.giveRep({
+      guildId: 'guild-1',
+      giverId: 'giver-1',
+      receiverId: 'receiver-1',
+      now
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('Bạn đã dùng hết 3 lượt +rep hôm nay! Hãy quay lại vào ngày mai.');
+    expect(result.giverRemaining).toBe(0);
+    // Receiver must not be updated
+    expect(updateSpy).toHaveBeenCalledTimes(1);
+    expect(updateSpy).toHaveBeenCalledWith(
+      { guildId: 'guild-1', userId: 'giver-1', repGivenToday: { $lt: 3 } },
+      expect.any(Object),
+      { new: true }
     );
   });
 
@@ -284,6 +317,25 @@ describe('Rep Embed Builders', () => {
     expect(quotaField?.value).toContain('2/3');
   });
 
+  it('truncates reason to 200 characters if longer than 200 characters', () => {
+    const longReason = 'A'.repeat(250);
+    const embed = createRepSuccessEmbed({
+      giverId: 'giver-123',
+      receiver: {
+        id: 'receiver-456',
+        username: 'BobTheBuilder'
+      },
+      receiverRepCount: 15,
+      giverRemaining: 2,
+      reason: longReason
+    });
+
+    const data = embed.data;
+    const reasonField = data.fields?.find((f) => f.name === 'Lý do');
+    expect(reasonField?.value.length).toBe(200);
+    expect(reasonField?.value).toBe('A'.repeat(200));
+  });
+
   it('creates error embed with given error message', () => {
     const embed = createRepErrorEmbed('Bạn đã dùng hết 3 lượt +rep hôm nay! Hãy quay lại vào ngày mai.');
     const data = embed.data;
@@ -376,6 +428,42 @@ describe('/rep slash command (handleRepCommand)', () => {
     const embed = editArgs.embeds[0].data;
     expect(embed.description).toContain('<@giver-1>');
     expect(embed.description).toContain('<@receiver-2>');
+  });
+
+  it('truncates reason exceeding 200 characters when executing /rep slash command', async () => {
+    vi.spyOn(RepService, 'giveRep').mockResolvedValueOnce({
+      success: true,
+      giverRemaining: 1,
+      receiverRepCount: 8
+    });
+
+    const targetUser = {
+      id: 'receiver-2',
+      username: 'Bob',
+      displayAvatarURL: vi.fn().mockReturnValue('https://example.com/bob.png')
+    } as unknown as User;
+
+    const longReason = 'x'.repeat(250);
+    const interaction = mockInteraction({
+      userId: 'giver-1',
+      username: 'Alice',
+      targetUser,
+      reason: longReason
+    });
+
+    await handleRepCommand(interaction);
+
+    expect(RepService.giveRep).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reason: 'x'.repeat(200)
+      })
+    );
+
+    const editArgs = vi.mocked(interaction.editReply).mock.calls[0][0] as { embeds: any[] };
+    const embed = editArgs.embeds[0].data;
+    const reasonField = embed.fields?.find((f: any) => f.name === 'Lý do');
+    expect(reasonField?.value).toBe('x'.repeat(200));
+    expect(reasonField?.value.length).toBe(200);
   });
 
   it('handles unexpected exceptions cleanly without throwing unhandled rejection', async () => {

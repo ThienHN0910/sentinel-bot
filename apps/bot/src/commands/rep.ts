@@ -27,12 +27,16 @@ export function createRepSuccessEmbed(params: {
   giverRemaining: number;
   reason?: string;
 }): EmbedBuilder {
+  const truncatedReason = params.reason
+    ? (params.reason.length > 200 ? params.reason.slice(0, 200) : params.reason)
+    : undefined;
+
   const embed = new EmbedBuilder()
     .setTitle('🌟 Điểm Uy Tín (+rep)')
     .setDescription(`<@${params.giverId}> đã cộng +1 điểm uy tín cho <@${params.receiver.id}>!`)
     .setColor(0xf1c40f)
     .addFields(
-      ...(params.reason ? [{ name: 'Lý do', value: params.reason, inline: false }] : []),
+      ...(truncatedReason ? [{ name: 'Lý do', value: truncatedReason, inline: false }] : []),
       { name: '⭐ Tổng điểm uy tín', value: `**${params.receiverRepCount}** điểm`, inline: true },
       { name: '⭐ Lượt còn lại hôm nay', value: `Còn lại **${params.giverRemaining}/3** lượt`, inline: true }
     )
@@ -70,7 +74,8 @@ export async function handleRepCommand(interaction: ChatInputCommandInteraction)
   await interaction.deferReply();
 
   try {
-    const reason = interaction.options.getString('reason')?.trim() || undefined;
+    const rawReason = interaction.options.getString('reason')?.trim() || undefined;
+    const reason = rawReason && rawReason.length > 200 ? rawReason.slice(0, 200) : rawReason;
 
     const result = await RepService.giveRep({
       guildId: interaction.guildId,

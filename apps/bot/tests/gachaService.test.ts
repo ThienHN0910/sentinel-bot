@@ -316,6 +316,13 @@ describe('GachaService.spin', () => {
     expect(result.newBalance).toBe(550);
     expect(result.pity).toBe(16);
 
+    // Verify atomic filter and options for paid rolls
+    expect(updateSpy).toHaveBeenCalledWith(
+      { guildId: 'guild-1', userId: 'user-1', dneCoins: { $gte: 200 } },
+      expect.any(Object),
+      { upsert: false, new: true }
+    );
+
     // Verify lastGachaAt is not in $set for paid rolls
     const updateCall = updateSpy.mock.calls[0];
     const updateArg = updateCall[1] as any;
@@ -325,6 +332,43 @@ describe('GachaService.spin', () => {
       exp: 50
     });
     expect(updateArg.$set.gachaPity).toBe(16);
+  });
+
+  it('prevents overdraft under race condition when balance drops below 200 before atomic update', async () => {
+    const now = new Date('2026-10-01T12:00:00.000Z');
+    const previousGachaAt = new Date('2026-10-01T06:00:00.000Z'); // 6 hours ago
+
+    vi.spyOn(UserStatModel, 'findOne')
+      .mockResolvedValueOnce({
+        guildId: 'guild-1',
+        userId: 'user-1',
+        dneCoins: 200,
+        gachaPity: 5,
+        lastGachaAt: previousGachaAt
+      } as any)
+      .mockResolvedValueOnce({
+        guildId: 'guild-1',
+        userId: 'user-1',
+        dneCoins: 50,
+        gachaPity: 5,
+        lastGachaAt: previousGachaAt
+      } as any);
+
+    const updateSpy = vi.spyOn(UserStatModel, 'findOneAndUpdate').mockResolvedValueOnce(null);
+
+    await expect(
+      GachaService.spin({
+        guildId: 'guild-1',
+        userId: 'user-1',
+        now
+      })
+    ).rejects.toThrow('Bạn không đủ DNE Coins! Cần 200 xu cho lượt quay này. Số dư hiện tại: 50 xu');
+
+    expect(updateSpy).toHaveBeenCalledWith(
+      { guildId: 'guild-1', userId: 'user-1', dneCoins: { $gte: 200 } },
+      expect.any(Object),
+      { upsert: false, new: true }
+    );
   });
 
   it('resets pity to 0 when Epic is rolled normally', async () => {

@@ -19,6 +19,8 @@ const UserStatSchema = new Schema<UserStatDocument>({
   repCount: { type: Number, default: 0 },
   repGivenToday: { type: Number, default: 0 },
   lastRepResetAt: { type: Date },
+  lastGachaAt: { type: Date },
+  gachaPity: { type: Number, default: 0 },
   mentionedUsers: { type: Map, of: Number, default: {} },
   updatedAt: { type: Date, default: Date.now }
 });

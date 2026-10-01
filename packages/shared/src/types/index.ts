@@ -14,8 +14,23 @@ export interface IUserStat {
   repCount?: number;
   repGivenToday?: number;
   lastRepResetAt?: Date;
+  lastGachaAt?: Date;
+  gachaPity?: number;
   mentionedUsers: Record<string, number>;
   updatedAt: Date;
+}
+
+export type GachaRarity = 'COMMON' | 'UNCOMMON' | 'RARE' | 'EPIC' | 'LEGENDARY';
+
+export interface GachaResult {
+  rarity: GachaRarity;
+  rewardCoins: number;
+  rewardXp: number;
+  isFree: boolean;
+  cost: number;
+  newBalance: number;
+  pity: number;
+  isPityGuaranteed?: boolean;
 }
 
 export interface RepResult {

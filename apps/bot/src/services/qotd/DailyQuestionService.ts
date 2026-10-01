@@ -264,10 +264,22 @@ export class DailyQuestionService {
     }
 
     if (question.type === 'trivia') {
-      const alreadyVoted = question.options.some((o) =>
-        o.votes.includes(params.userId)
+      const updatedQuestion = await DailyQuestionModel.findOneAndUpdate(
+        {
+          guildId: params.guildId,
+          date: params.date,
+          'options.votes': { $ne: params.userId }
+        },
+        {
+          $push: { 'options.$[elem].votes': params.userId }
+        },
+        {
+          arrayFilters: [{ 'elem.key': params.optionKey }],
+          new: true
+        }
       );
-      if (alreadyVoted) {
+
+      if (!updatedQuestion) {
         return {
           success: false,
           error:
@@ -276,37 +288,46 @@ export class DailyQuestionService {
         };
       }
 
-      targetOption.votes.push(params.userId);
       const isCorrect = params.optionKey === question.correctAnswerKey;
       let rewardEarned = false;
+      let finalQuestion = updatedQuestion;
 
-      if (isCorrect && !question.rewardedUserIds.includes(params.userId)) {
-        question.rewardedUserIds.push(params.userId);
-        rewardEarned = true;
-
-        await UserStatModel.findOneAndUpdate(
-          { guildId: params.guildId, userId: params.userId },
+      if (isCorrect) {
+        const rewardedDoc = await DailyQuestionModel.findOneAndUpdate(
           {
-            $inc: { dneCoins: 50, exp: 20 },
-            $setOnInsert: {
-              username: params.username,
-              avatar: ''
-            },
-            $set: { updatedAt: new Date() }
+            guildId: params.guildId,
+            date: params.date,
+            rewardedUserIds: { $ne: params.userId }
           },
-          { upsert: true, new: true }
+          {
+            $addToSet: { rewardedUserIds: params.userId }
+          },
+          { new: true }
         );
-      }
 
-      question.markModified?.('options');
-      question.markModified?.('rewardedUserIds');
-      await question.save();
+        if (rewardedDoc) {
+          rewardEarned = true;
+          finalQuestion = rewardedDoc;
+          await UserStatModel.findOneAndUpdate(
+            { guildId: params.guildId, userId: params.userId },
+            {
+              $inc: { dneCoins: 50, exp: 20 },
+              $setOnInsert: {
+                username: params.username,
+                avatar: ''
+              },
+              $set: { updatedAt: new Date() }
+            },
+            { upsert: true, new: true }
+          );
+        }
+      }
 
       return {
         success: true,
         isCorrect,
         rewardEarned,
-        question
+        question: finalQuestion
       };
     } else {
       // 'wyr' or 'this_that': allow changing votes

@@ -87,6 +87,26 @@ describe('ConfessionService & Zero-Trace Confession Persistence', () => {
       expect(resUser1.allowed).toBe(true);
       expect(resUser2.allowed).toBe(true);
     });
+
+    it('sweeps expired cooldowns while retaining active cooldowns', () => {
+      const t0 = new Date('2026-10-01T12:00:00Z');
+      ConfessionService.checkRateLimit('user-old', t0);
+
+      const t1 = new Date(t0.getTime() + 4 * 60_000);
+      ConfessionService.checkRateLimit('user-recent', t1);
+
+      // 5.5 minutes after t0
+      const tSweep = t0.getTime() + 5.5 * 60_000;
+      ConfessionService.sweepExpiredCooldowns(tSweep);
+
+      // user-old was expired and deleted by sweep
+      const resOld = ConfessionService.checkRateLimit('user-old', new Date(tSweep));
+      expect(resOld.allowed).toBe(true);
+
+      // user-recent is only 1.5 minutes old at tSweep, so still rate limited
+      const resRecent = ConfessionService.checkRateLimit('user-recent', new Date(tSweep));
+      expect(resRecent.allowed).toBe(false);
+    });
   });
 
   describe('postConfession', () => {
@@ -212,6 +232,55 @@ describe('ConfessionService & Zero-Trace Confession Persistence', () => {
       const createdObj = createSpy.mock.calls[0][0] as Record<string, unknown>;
       expect(createdObj).not.toHaveProperty('userId');
       expect(createdObj).not.toHaveProperty('authorId');
+    });
+
+    it('retries up to 3 times on MongoDB duplicate key collision (code 11000) and updates message', async () => {
+      vi.spyOn(GuildConfigModel, 'findOne').mockResolvedValue({
+        guildId: 'guild-1',
+        confessionChannelId: 'channel-confess'
+      } as never);
+
+      let numberCallCount = 0;
+      vi.spyOn(ConfessionService, 'getNextConfessionNumber').mockImplementation(async () => {
+        numberCallCount++;
+        return numberCallCount === 1 ? 5 : 6;
+      });
+
+      const editMock = vi.fn().mockResolvedValue({});
+      const sendMock = vi.fn().mockResolvedValue({ id: 'msg-collision', edit: editMock });
+      const channelMock = {
+        id: 'channel-confess',
+        isTextBased: () => true,
+        send: sendMock
+      };
+
+      const client = {
+        channels: { fetch: vi.fn().mockResolvedValue(channelMock) }
+      } as never;
+
+      const dupError: any = new Error('E11000 duplicate key error');
+      dupError.code = 11000;
+
+      const createSpy = vi.spyOn(ConfessionModel, 'create')
+        .mockRejectedValueOnce(dupError)
+        .mockResolvedValueOnce({
+          guildId: 'guild-1',
+          confessionNumber: 6,
+          content: 'Confession retry test',
+          messageId: 'msg-collision',
+          createdAt: new Date()
+        } as never);
+
+      const result = await ConfessionService.postConfession({
+        guildId: 'guild-1',
+        content: 'Confession retry test',
+        client
+      });
+
+      expect(result.confessionNumber).toBe(6);
+      expect(result.messageId).toBe('msg-collision');
+      expect(createSpy).toHaveBeenCalledTimes(2);
+      expect(editMock).toHaveBeenCalledTimes(1);
     });
   });
 

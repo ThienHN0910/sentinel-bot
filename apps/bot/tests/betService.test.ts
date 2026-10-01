@@ -110,13 +110,21 @@ describe('BetService (1v1 P2P Challenge & Community Pool Wagers)', () => {
         ],
         status: 'open',
         totalPool: 150,
-        expiresAt: new Date(Date.now() + 86400000),
-        save: vi.fn().mockImplementation(function (this: any) {
-          return Promise.resolve(this);
-        })
+        expiresAt: new Date(Date.now() + 86400000)
+      };
+
+      const updatedMockBet: any = {
+        ...mockBet,
+        status: 'active',
+        totalPool: 300,
+        wagers: [
+          ...mockBet.wagers,
+          { userId: 'opponent-2', username: 'Bob', option: 'Bob win', amount: 150, createdAt: new Date() }
+        ]
       };
 
       vi.spyOn(BetModel, 'findOne').mockResolvedValue(mockBet as never);
+      const betUpdateSpy = vi.spyOn(BetModel, 'findOneAndUpdate').mockResolvedValue(updatedMockBet as never);
       const findOneAndUpdateSpy = vi.spyOn(UserStatModel, 'findOneAndUpdate').mockResolvedValue({
         guildId: 'guild-1',
         userId: 'opponent-2',
@@ -135,12 +143,60 @@ describe('BetService (1v1 P2P Challenge & Community Pool Wagers)', () => {
         { new: true }
       );
 
+      expect(betUpdateSpy).toHaveBeenCalledWith(
+        {
+          betId: 'bet-123',
+          status: 'open',
+          $or: [{ opponentId: null }, { opponentId: 'opponent-2' }]
+        },
+        expect.objectContaining({
+          $set: { status: 'active', opponentId: 'opponent-2', opponentUsername: 'Bob' },
+          $inc: { totalPool: 150 }
+        }),
+        { new: true }
+      );
+
       expect(acceptedBet.status).toBe('active');
       expect(acceptedBet.totalPool).toBe(300);
       expect(acceptedBet.wagers).toHaveLength(2);
       expect(acceptedBet.wagers[1].userId).toBe('opponent-2');
       expect(acceptedBet.wagers[1].amount).toBe(150);
-      expect(mockBet.save).toHaveBeenCalled();
+    });
+
+    it('refunds opponent immediately if challenge is accepted concurrently or closed', async () => {
+      const mockBet: any = {
+        betId: 'bet-123',
+        guildId: 'guild-1',
+        kind: 'p2p',
+        creatorId: 'creator-1',
+        opponentId: 'opponent-2',
+        wagers: [{ userId: 'creator-1', amount: 150, option: 'Alice win' }],
+        status: 'open',
+        options: ['Alice win', 'Bob win'],
+        totalPool: 150,
+        expiresAt: new Date(Date.now() + 86400000)
+      };
+
+      vi.spyOn(BetModel, 'findOne').mockResolvedValue(mockBet as never);
+      const userStatUpdateSpy = vi.spyOn(UserStatModel, 'findOneAndUpdate')
+        .mockResolvedValueOnce({ dneCoins: 850 } as never) // deduction
+        .mockResolvedValueOnce({ dneCoins: 1000 } as never); // refund
+
+      vi.spyOn(BetModel, 'findOneAndUpdate').mockResolvedValue(null as never);
+
+      await expect(
+        BetService.acceptP2PChallenge({
+          betId: 'bet-123',
+          opponentId: 'opponent-2',
+          opponentUsername: 'Bob'
+        })
+      ).rejects.toThrow('Kèo cược đã được người khác chấp nhận hoặc không còn mở!');
+
+      expect(userStatUpdateSpy).toHaveBeenLastCalledWith(
+        { guildId: 'guild-1', userId: 'opponent-2' },
+        { $inc: { dneCoins: 150 }, $set: expect.objectContaining({ updatedAt: expect.any(Date) }) },
+        { upsert: true }
+      );
     });
 
     it('fails accepting challenge when opponent has insufficient coins', async () => {
@@ -200,13 +256,14 @@ describe('BetService (1v1 P2P Challenge & Community Pool Wagers)', () => {
         wagers: [{ userId: 'creator-1', amount: 250, option: 'pick', createdAt: new Date() }],
         status: 'open',
         totalPool: 250,
-        expiresAt: new Date(Date.now() + 86400000),
-        save: vi.fn().mockImplementation(function (this: any) {
-          return Promise.resolve(this);
-        })
+        expiresAt: new Date(Date.now() + 86400000)
       };
 
       vi.spyOn(BetModel, 'findOne').mockResolvedValue(mockBet as never);
+      vi.spyOn(BetModel, 'findOneAndUpdate').mockResolvedValue({
+        ...mockBet,
+        status: 'cancelled'
+      } as never);
       const refundSpy = vi.spyOn(UserStatModel, 'findOneAndUpdate').mockResolvedValue({} as never);
 
       const result = await BetService.rejectOrCancelP2P({
@@ -221,7 +278,27 @@ describe('BetService (1v1 P2P Challenge & Community Pool Wagers)', () => {
       );
 
       expect(result.status).toBe('cancelled');
-      expect(mockBet.save).toHaveBeenCalled();
+    });
+
+    it('fails reject/cancel if challenge was already resolved or cancelled concurrently', async () => {
+      const mockBet: any = {
+        betId: 'bet-123',
+        guildId: 'guild-1',
+        kind: 'p2p',
+        creatorId: 'creator-1',
+        opponentId: 'opponent-2',
+        status: 'open'
+      };
+
+      vi.spyOn(BetModel, 'findOne').mockResolvedValue(mockBet as never);
+      vi.spyOn(BetModel, 'findOneAndUpdate').mockResolvedValue(null as never);
+
+      await expect(
+        BetService.rejectOrCancelP2P({
+          betId: 'bet-123',
+          userId: 'creator-1'
+        })
+      ).rejects.toThrow('Kèo cược đã được chấp nhận, đã kết toán hoặc đã bị hủy!');
     });
 
     it('fails reject/cancel if caller is neither creator nor opponent', async () => {
@@ -244,7 +321,7 @@ describe('BetService (1v1 P2P Challenge & Community Pool Wagers)', () => {
       ).rejects.toThrow('Bạn không có quyền hủy hoặc từ chối kèo cược này!');
     });
 
-    it('resolves P2P challenge and awards 2x pot to winner', async () => {
+    it('resolves P2P challenge and awards pot to winner', async () => {
       const mockBet: any = {
         betId: 'bet-123',
         guildId: 'guild-1',
@@ -257,13 +334,16 @@ describe('BetService (1v1 P2P Challenge & Community Pool Wagers)', () => {
           { userId: 'creator-1', username: 'Alice', option: 'Alice win', amount: 200, createdAt: new Date() },
           { userId: 'opponent-2', username: 'Bob', option: 'Bob win', amount: 200, createdAt: new Date() }
         ],
-        status: 'active',
-        save: vi.fn().mockImplementation(function (this: any) {
-          return Promise.resolve(this);
-        })
+        status: 'active'
       };
 
       vi.spyOn(BetModel, 'findOne').mockResolvedValue(mockBet as never);
+      vi.spyOn(BetModel, 'findOneAndUpdate').mockResolvedValue({
+        ...mockBet,
+        status: 'resolved',
+        winnerUserId: 'opponent-2',
+        winnerOption: 'Bob win'
+      } as never);
       const awardSpy = vi.spyOn(UserStatModel, 'findOneAndUpdate').mockResolvedValue({} as never);
 
       const res = await BetService.resolveP2PChallenge({
@@ -283,6 +363,38 @@ describe('BetService (1v1 P2P Challenge & Community Pool Wagers)', () => {
       expect(res.payout).toBe(400);
       expect(res.bet.status).toBe('resolved');
       expect(res.bet.winnerUserId).toBe('opponent-2');
+    });
+
+    it('fails resolving P2P challenge if already resolved concurrently', async () => {
+      const mockBet: any = {
+        betId: 'bet-123',
+        guildId: 'guild-1',
+        kind: 'p2p',
+        creatorId: 'creator-1',
+        opponentId: 'opponent-2',
+        status: 'active',
+        totalPool: 400,
+        options: ['Alice win', 'Bob win'],
+        wagers: [
+          { userId: 'creator-1', username: 'Alice', option: 'Alice win', amount: 200, createdAt: new Date() },
+          { userId: 'opponent-2', username: 'Bob', option: 'Bob win', amount: 200, createdAt: new Date() }
+        ]
+      };
+
+      vi.spyOn(BetModel, 'findOne').mockResolvedValue(mockBet as never);
+      vi.spyOn(BetModel, 'findOneAndUpdate').mockResolvedValue(null as never);
+      const awardSpy = vi.spyOn(UserStatModel, 'findOneAndUpdate');
+
+      await expect(
+        BetService.resolveP2PChallenge({
+          betId: 'bet-123',
+          callerId: 'creator-1',
+          isGuildAdmin: false,
+          winnerUserId: 'opponent-2'
+        })
+      ).rejects.toThrow('Kèo cược đã được kết toán hoặc không còn hoạt động!');
+
+      expect(awardSpy).not.toHaveBeenCalled();
     });
 
     it('rejects unauthorized non-admin user trying to resolve P2P challenge', async () => {
@@ -320,13 +432,16 @@ describe('BetService (1v1 P2P Challenge & Community Pool Wagers)', () => {
           { userId: 'creator-1', username: 'Alice', option: 'Alice', amount: 300, createdAt: new Date() },
           { userId: 'opponent-2', username: 'Bob', option: 'Bob', amount: 300, createdAt: new Date() }
         ],
-        status: 'active',
-        save: vi.fn().mockImplementation(function (this: any) {
-          return Promise.resolve(this);
-        })
+        status: 'active'
       };
 
       vi.spyOn(BetModel, 'findOne').mockResolvedValue(mockBet as never);
+      vi.spyOn(BetModel, 'findOneAndUpdate').mockResolvedValue({
+        ...mockBet,
+        status: 'resolved',
+        winnerUserId: 'creator-1',
+        winnerOption: 'Alice'
+      } as never);
       vi.spyOn(UserStatModel, 'findOneAndUpdate').mockResolvedValue({} as never);
 
       const res = await BetService.resolveP2PChallenge({
@@ -395,13 +510,25 @@ describe('BetService (1v1 P2P Challenge & Community Pool Wagers)', () => {
         wagers: [],
         totalPool: 0,
         status: 'open',
-        expiresAt: new Date(Date.now() + 3600000),
-        save: vi.fn().mockImplementation(function (this: any) {
-          return Promise.resolve(this);
-        })
+        expiresAt: new Date(Date.now() + 3600000)
+      };
+
+      const updatedMockBet: any = {
+        ...mockBet,
+        totalPool: 300,
+        wagers: [
+          {
+            userId: 'user-bettor-1',
+            username: 'FakerFan',
+            option: 'T1',
+            amount: 300,
+            createdAt: expect.any(Date)
+          }
+        ]
       };
 
       vi.spyOn(BetModel, 'findOne').mockResolvedValue(mockBet as never);
+      const betUpdateSpy = vi.spyOn(BetModel, 'findOneAndUpdate').mockResolvedValue(updatedMockBet as never);
       const findOneAndUpdateSpy = vi.spyOn(UserStatModel, 'findOneAndUpdate').mockResolvedValue({
         guildId: 'guild-1',
         userId: 'user-bettor-1',
@@ -422,6 +549,15 @@ describe('BetService (1v1 P2P Challenge & Community Pool Wagers)', () => {
         { new: true }
       );
 
+      expect(betUpdateSpy).toHaveBeenCalledWith(
+        { betId: 'pool-456', status: 'open', expiresAt: { $gt: expect.any(Date) } },
+        expect.objectContaining({
+          $push: { wagers: expect.any(Object) },
+          $inc: { totalPool: 300 }
+        }),
+        { new: true }
+      );
+
       expect(updatedBet.totalPool).toBe(300);
       expect(updatedBet.wagers).toHaveLength(1);
       expect(updatedBet.wagers[0]).toEqual(
@@ -432,7 +568,41 @@ describe('BetService (1v1 P2P Challenge & Community Pool Wagers)', () => {
           amount: 300
         })
       );
-      expect(mockBet.save).toHaveBeenCalled();
+    });
+
+    it('refunds user immediately when joining community pool that closed/expired concurrently', async () => {
+      const mockBet: any = {
+        betId: 'pool-456',
+        guildId: 'guild-1',
+        kind: 'pool',
+        options: ['T1', 'GenG'],
+        wagers: [],
+        totalPool: 0,
+        status: 'open',
+        expiresAt: new Date(Date.now() + 3600000)
+      };
+
+      vi.spyOn(BetModel, 'findOne').mockResolvedValue(mockBet as never);
+      const userStatSpy = vi.spyOn(UserStatModel, 'findOneAndUpdate')
+        .mockResolvedValueOnce({ dneCoins: 500 } as never) // deduction
+        .mockResolvedValueOnce({ dneCoins: 800 } as never); // refund
+      vi.spyOn(BetModel, 'findOneAndUpdate').mockResolvedValue(null as never);
+
+      await expect(
+        BetService.joinCommunityPool({
+          betId: 'pool-456',
+          userId: 'user-bettor-1',
+          username: 'FakerFan',
+          option: 'T1',
+          amount: 300
+        })
+      ).rejects.toThrow('Kèo cược đã hết hạn hoặc không còn mở!');
+
+      expect(userStatSpy).toHaveBeenLastCalledWith(
+        { guildId: 'guild-1', userId: 'user-bettor-1' },
+        { $inc: { dneCoins: 300 }, $set: expect.objectContaining({ updatedAt: expect.any(Date) }) },
+        { upsert: true }
+      );
     });
 
     it('fails joining pool when user has insufficient coins', async () => {
@@ -506,13 +676,15 @@ describe('BetService (1v1 P2P Challenge & Community Pool Wagers)', () => {
           { userId: 'u1', username: 'User1', option: 'A', amount: 100, createdAt: new Date() },
           { userId: 'u2', username: 'User2', option: 'A', amount: 300, createdAt: new Date() },
           { userId: 'u3', username: 'User3', option: 'B', amount: 600, createdAt: new Date() }
-        ],
-        save: vi.fn().mockImplementation(function (this: any) {
-          return Promise.resolve(this);
-        })
+        ]
       };
 
       vi.spyOn(BetModel, 'findOne').mockResolvedValue(mockBet as never);
+      vi.spyOn(BetModel, 'findOneAndUpdate').mockResolvedValue({
+        ...mockBet,
+        status: 'resolved',
+        winnerOption: 'A'
+      } as never);
       const findOneAndUpdateSpy = vi.spyOn(UserStatModel, 'findOneAndUpdate').mockResolvedValue({} as never);
 
       const result = await BetService.resolveCommunityPool({
@@ -559,13 +731,15 @@ describe('BetService (1v1 P2P Challenge & Community Pool Wagers)', () => {
         wagers: [
           { userId: 'u1', username: 'User1', option: 'A', amount: 200, createdAt: new Date() },
           { userId: 'u2', username: 'User2', option: 'B', amount: 300, createdAt: new Date() }
-        ],
-        save: vi.fn().mockImplementation(function (this: any) {
-          return Promise.resolve(this);
-        })
+        ]
       };
 
       vi.spyOn(BetModel, 'findOne').mockResolvedValue(mockBet as never);
+      vi.spyOn(BetModel, 'findOneAndUpdate').mockResolvedValue({
+        ...mockBet,
+        status: 'resolved',
+        winnerOption: 'C'
+      } as never);
       const refundSpy = vi.spyOn(UserStatModel, 'findOneAndUpdate').mockResolvedValue({} as never);
 
       const result = await BetService.resolveCommunityPool({
@@ -589,6 +763,33 @@ describe('BetService (1v1 P2P Challenge & Community Pool Wagers)', () => {
         { $inc: { dneCoins: 300 }, $set: expect.objectContaining({ updatedAt: expect.any(Date) }) },
         { upsert: true }
       );
+    });
+
+    it('fails resolving community pool if already resolved concurrently', async () => {
+      const mockBet: any = {
+        betId: 'pool-race-1',
+        guildId: 'guild-1',
+        kind: 'pool',
+        creatorId: 'creator-admin',
+        options: ['A', 'B'],
+        status: 'open',
+        wagers: []
+      };
+
+      vi.spyOn(BetModel, 'findOne').mockResolvedValue(mockBet as never);
+      vi.spyOn(BetModel, 'findOneAndUpdate').mockResolvedValue(null as never);
+      const userStatSpy = vi.spyOn(UserStatModel, 'findOneAndUpdate');
+
+      await expect(
+        BetService.resolveCommunityPool({
+          betId: 'pool-race-1',
+          callerId: 'creator-admin',
+          isGuildAdmin: false,
+          winningOption: 'A'
+        })
+      ).rejects.toThrow('Kèo cược đã được kết toán hoặc đã bị hủy!');
+
+      expect(userStatSpy).not.toHaveBeenCalled();
     });
 
     it('rejects unauthorized resolution of community pool by non-admin stranger', async () => {

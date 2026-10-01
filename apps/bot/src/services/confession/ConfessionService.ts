@@ -5,6 +5,30 @@ import { GuildConfigModel } from '../../models/GuildConfig';
 export class ConfessionService {
   private static readonly RATE_LIMIT_DURATION_MS = 5 * 60 * 1000;
   private static userCooldowns = new Map<string, number>();
+  private static sweepInterval: NodeJS.Timeout | null = null;
+
+  public static startSweepInterval(): void {
+    if (this.sweepInterval) return;
+    this.sweepInterval = setInterval(() => {
+      this.sweepExpiredCooldowns();
+    }, 5 * 60 * 1000);
+    this.sweepInterval.unref?.();
+  }
+
+  public static stopSweepInterval(): void {
+    if (this.sweepInterval) {
+      clearInterval(this.sweepInterval);
+      this.sweepInterval = null;
+    }
+  }
+
+  public static sweepExpiredCooldowns(now: number = Date.now()): void {
+    for (const [userId, lastTimestamp] of this.userCooldowns.entries()) {
+      if (now - lastTimestamp >= this.RATE_LIMIT_DURATION_MS) {
+        this.userCooldowns.delete(userId);
+      }
+    }
+  }
 
   public static clearRateLimits(): void {
     this.userCooldowns.clear();
@@ -57,43 +81,80 @@ export class ConfessionService {
       throw new Error('Confession channel not found or invalid');
     }
 
-    const confessionNumber = await this.getNextConfessionNumber(guildId);
+    let confessionNumber = await this.getNextConfessionNumber(guildId);
 
-    const embed = new EmbedBuilder()
-      .setTitle(`📬 CONFESSION #${confessionNumber}`)
-      .setDescription(content)
-      .setColor(0x5865f2);
+    const buildPayload = (num: number) => {
+      const embed = new EmbedBuilder()
+        .setTitle(`📬 CONFESSION #${num}`)
+        .setDescription(content)
+        .setColor(0x5865f2);
 
-    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`confess:react:heart:${confessionNumber}`)
-        .setLabel('Yêu thích (0)')
-        .setEmoji('❤️')
-        .setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder()
-        .setCustomId(`confess:react:laugh:${confessionNumber}`)
-        .setLabel('Haha (0)')
-        .setEmoji('😂')
-        .setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder()
-        .setCustomId(`confess:react:discuss:${confessionNumber}`)
-        .setLabel('Thảo luận')
-        .setEmoji('💬')
-        .setStyle(ButtonStyle.Secondary)
-    );
+      const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`confess:react:heart:${num}`)
+          .setLabel('Yêu thích (0)')
+          .setEmoji('❤️')
+          .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+          .setCustomId(`confess:react:laugh:${num}`)
+          .setLabel('Haha (0)')
+          .setEmoji('😂')
+          .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+          .setCustomId(`confess:react:discuss:${num}`)
+          .setLabel('Thảo luận')
+          .setEmoji('💬')
+          .setStyle(ButtonStyle.Secondary)
+      );
+
+      return { embed, row };
+    };
+
+    const initial = buildPayload(confessionNumber);
 
     const message = await (channel as any).send({
-      embeds: [embed],
-      components: [row]
+      embeds: [initial.embed],
+      components: [initial.row]
     });
 
-    await ConfessionModel.create({
-      guildId,
-      confessionNumber,
-      content,
-      messageId: message.id,
-      createdAt: new Date()
-    });
+    const maxAttempts = 3;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        await ConfessionModel.create({
+          guildId,
+          confessionNumber,
+          content,
+          messageId: message.id,
+          createdAt: new Date()
+        });
+
+        return {
+          confessionNumber,
+          messageId: message.id
+        };
+      } catch (err: any) {
+        const isDuplicateKey =
+          err?.code === 11000 ||
+          String(err?.message || '').includes('11000') ||
+          String(err?.message || '').includes('E11000');
+
+        if (isDuplicateKey && attempt < maxAttempts) {
+          confessionNumber = await this.getNextConfessionNumber(guildId);
+          const updated = buildPayload(confessionNumber);
+          if (message.edit && typeof message.edit === 'function') {
+            await message
+              .edit({
+                embeds: [updated.embed],
+                components: [updated.row]
+              })
+              .catch(() => null);
+          }
+          continue;
+        }
+
+        throw err;
+      }
+    }
 
     return {
       confessionNumber,
@@ -132,3 +193,7 @@ export class ConfessionService {
     return true;
   }
 }
+
+// Start periodic rate-limit cleanup
+ConfessionService.startSweepInterval();
+

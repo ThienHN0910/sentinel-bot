@@ -142,22 +142,50 @@ export class BetService {
       throw new Error(`Bạn không đủ DNE Coins để đặt cược (cần ${matchAmount} xu)!`);
     }
 
-    const opponentOption = bet.options[1] || 'Đối thủ';
-    bet.wagers.push({
+    const opponentOption = bet.options?.[1] || 'Đối thủ';
+    const opponentWager: Wager = {
       userId: opponentId,
       username: opponentUsername,
       option: opponentOption,
       amount: matchAmount,
       createdAt: now
-    });
+    };
 
-    bet.opponentId = opponentId;
-    bet.opponentUsername = opponentUsername;
-    bet.totalPool += matchAmount;
-    bet.status = 'active';
+    const updatedBet = await BetModel.findOneAndUpdate(
+      {
+        betId,
+        status: 'open',
+        $or: [{ opponentId: null }, { opponentId }]
+      },
+      {
+        $set: { status: 'active', opponentId, opponentUsername },
+        $inc: { totalPool: matchAmount },
+        $push: { wagers: opponentWager }
+      },
+      { new: true }
+    );
 
-    await bet.save();
-    return bet;
+    if (!updatedBet) {
+      // Refund opponent immediately
+      await UserStatModel.findOneAndUpdate(
+        { guildId: bet.guildId, userId: opponentId },
+        { $inc: { dneCoins: matchAmount }, $set: { updatedAt: new Date() } },
+        { upsert: true }
+      );
+      throw new Error('Kèo cược đã được người khác chấp nhận hoặc không còn mở!');
+    }
+
+    return updatedBet;
+  }
+
+  /**
+   * Alias for rejectOrCancelP2P.
+   */
+  public static async cancelP2PChallenge(params: {
+    betId: string;
+    userId: string;
+  }): Promise<IBet> {
+    return this.rejectOrCancelP2P(params);
   }
 
   /**
@@ -186,25 +214,33 @@ export class BetService {
       throw new Error('Bạn không có quyền hủy hoặc từ chối kèo cược này!');
     }
 
+    const updatedBet = await BetModel.findOneAndUpdate(
+      { betId, status: 'open' },
+      { $set: { status: 'cancelled' } },
+      { new: true }
+    );
+
+    if (!updatedBet) {
+      throw new Error('Kèo cược đã được chấp nhận, đã kết toán hoặc đã bị hủy!');
+    }
+
     // Refund creator escrow
-    const creatorWager = bet.wagers.find((w: Wager) => w.userId === bet.creatorId);
-    const refundAmount = creatorWager?.amount ?? bet.totalPool;
+    const creatorWager = updatedBet.wagers.find((w: Wager) => w.userId === updatedBet.creatorId);
+    const refundAmount = creatorWager?.amount ?? updatedBet.totalPool;
 
     if (refundAmount > 0) {
       await UserStatModel.findOneAndUpdate(
-        { guildId: bet.guildId, userId: bet.creatorId },
+        { guildId: updatedBet.guildId, userId: updatedBet.creatorId },
         { $inc: { dneCoins: refundAmount }, $set: { updatedAt: new Date() } },
         { upsert: true }
       );
     }
 
-    bet.status = 'cancelled';
-    await bet.save();
-    return bet;
+    return updatedBet;
   }
 
   /**
-   * Resolves an active 1v1 P2P challenge and pays out 2x total pool to the winner.
+   * Resolves an active 1v1 P2P challenge and pays out total pool to the winner.
    */
   public static async resolveP2PChallenge(params: {
     betId: string;
@@ -237,22 +273,38 @@ export class BetService {
 
     const payout = bet.totalPool;
     const now = new Date();
+    const winnerWager = bet.wagers.find((w: Wager) => w.userId === winnerUserId);
+    const winnerOption =
+      winnerWager?.option ||
+      (winnerUserId === bet.creatorId
+        ? bet.options?.[0] || 'Lựa chọn 1'
+        : bet.options?.[1] || 'Lựa chọn 2');
 
-    // Award full pot to winner
+    const updatedBet = await BetModel.findOneAndUpdate(
+      { betId, status: 'active' },
+      {
+        $set: {
+          status: 'resolved',
+          winnerUserId,
+          winnerOption,
+          resolvedAt: now
+        }
+      },
+      { new: true }
+    );
+
+    if (!updatedBet) {
+      throw new Error('Kèo cược đã được kết toán hoặc không còn hoạt động!');
+    }
+
+    // Award full pot to winner once after successful atomic transition
     await UserStatModel.findOneAndUpdate(
-      { guildId: bet.guildId, userId: winnerUserId },
+      { guildId: updatedBet.guildId, userId: winnerUserId },
       { $inc: { dneCoins: payout }, $set: { updatedAt: now } },
       { upsert: true }
     );
 
-    bet.status = 'resolved';
-    bet.winnerUserId = winnerUserId;
-    const winnerWager = bet.wagers.find((w: Wager) => w.userId === winnerUserId);
-    bet.winnerOption = winnerWager?.option || (winnerUserId === bet.creatorId ? bet.options[0] : bet.options[1]);
-    bet.resolvedAt = now;
-
-    await bet.save();
-    return { winnerId: winnerUserId, payout, bet };
+    return { winnerId: winnerUserId, payout, bet: updatedBet };
   }
 
   /**
@@ -354,18 +406,34 @@ export class BetService {
       throw new Error(`Bạn không đủ DNE Coins để đặt cược (cần ${amount} xu)!`);
     }
 
-    bet.wagers.push({
+    const wager: Wager = {
       userId,
       username,
       option: cleanOption,
       amount,
       createdAt: now
-    });
+    };
 
-    bet.totalPool += amount;
-    await bet.save();
+    const updatedBet = await BetModel.findOneAndUpdate(
+      { betId, status: 'open', expiresAt: { $gt: now } },
+      {
+        $push: { wagers: wager },
+        $inc: { totalPool: amount }
+      },
+      { new: true }
+    );
 
-    return bet;
+    if (!updatedBet) {
+      // Refund escrow
+      await UserStatModel.findOneAndUpdate(
+        { guildId: bet.guildId, userId },
+        { $inc: { dneCoins: amount }, $set: { updatedAt: new Date() } },
+        { upsert: true }
+      );
+      throw new Error('Kèo cược đã hết hạn hoặc không còn mở!');
+    }
+
+    return updatedBet;
   }
 
   /**
@@ -409,34 +477,40 @@ export class BetService {
     }
 
     const now = new Date();
-    const winningWagers = bet.wagers.filter((w: Wager) => w.option === cleanWinningOption);
+
+    const updatedBet = await BetModel.findOneAndUpdate(
+      { betId, status: { $nin: ['resolved', 'cancelled'] } },
+      { $set: { status: 'resolved', winnerOption: cleanWinningOption, resolvedAt: now } },
+      { new: true }
+    );
+
+    if (!updatedBet) {
+      throw new Error('Kèo cược đã được kết toán hoặc đã bị hủy!');
+    }
+
+    const winningWagers = updatedBet.wagers.filter((w: Wager) => w.option === cleanWinningOption);
 
     // Case 1: Nobody picked the winning option -> Refund all players
     if (winningWagers.length === 0) {
       const refundMap = new Map<string, number>();
-      for (const w of bet.wagers) {
+      for (const w of updatedBet.wagers) {
         refundMap.set(w.userId, (refundMap.get(w.userId) || 0) + w.amount);
       }
 
       for (const [uid, refundAmount] of refundMap.entries()) {
         await UserStatModel.findOneAndUpdate(
-          { guildId: bet.guildId, userId: uid },
+          { guildId: updatedBet.guildId, userId: uid },
           { $inc: { dneCoins: refundAmount }, $set: { updatedAt: now } },
           { upsert: true }
         );
       }
-
-      bet.status = 'resolved';
-      bet.winnerOption = cleanWinningOption;
-      bet.resolvedAt = now;
-      await bet.save();
 
       return {
         winningOption: cleanWinningOption,
         totalWinners: 0,
         totalPayout: 0,
         refundsGiven: true,
-        bet
+        bet: updatedBet
       };
     }
 
@@ -449,27 +523,22 @@ export class BetService {
 
     let totalPayout = 0;
     for (const [uid, userBetAmount] of userWinnings.entries()) {
-      const payout = Math.floor((userBetAmount / winningPool) * bet.totalPool);
+      const payout = Math.floor((userBetAmount / winningPool) * updatedBet.totalPool);
       totalPayout += payout;
 
       await UserStatModel.findOneAndUpdate(
-        { guildId: bet.guildId, userId: uid },
+        { guildId: updatedBet.guildId, userId: uid },
         { $inc: { dneCoins: payout }, $set: { updatedAt: now } },
         { upsert: true }
       );
     }
-
-    bet.status = 'resolved';
-    bet.winnerOption = cleanWinningOption;
-    bet.resolvedAt = now;
-    await bet.save();
 
     return {
       winningOption: cleanWinningOption,
       totalWinners: userWinnings.size,
       totalPayout,
       refundsGiven: false,
-      bet
+      bet: updatedBet
     };
   }
 }

@@ -318,11 +318,30 @@ describe('QOTD System & DailyQuestionService', () => {
           { key: 'D', label: 'Huế', votes: [] }
         ],
         correctAnswerKey: 'A',
-        rewardedUserIds: [],
-        save: vi.fn().mockResolvedValue(true)
+        rewardedUserIds: []
+      };
+
+      const updatedQuestion = {
+        ...mockQuestion,
+        options: [
+          { key: 'A', label: 'Hà Nội', votes: ['user-1'] },
+          { key: 'B', label: 'Đà Nẵng', votes: [] },
+          { key: 'C', label: 'TP.HCM', votes: [] },
+          { key: 'D', label: 'Huế', votes: [] }
+        ]
+      };
+
+      const rewardedDoc = {
+        ...updatedQuestion,
+        rewardedUserIds: ['user-1']
       };
 
       vi.spyOn(DailyQuestionModel, 'findOne').mockResolvedValue(mockQuestion as never);
+      vi.spyOn(DailyQuestionModel, 'findOneAndUpdate')
+        .mockResolvedValueOnce(updatedQuestion as never) // vote
+        .mockResolvedValueOnce(rewardedDoc as never) // reward
+        .mockResolvedValueOnce(null as never); // subsequent vote attempt returns null
+
       const userStatUpdateSpy = vi.spyOn(UserStatModel, 'findOneAndUpdate').mockResolvedValue({
         guildId: 'guild-test-1',
         userId: 'user-1',
@@ -342,8 +361,8 @@ describe('QOTD System & DailyQuestionService', () => {
       expect(res.success).toBe(true);
       expect(res.isCorrect).toBe(true);
       expect(res.rewardEarned).toBe(true);
-      expect(mockQuestion.rewardedUserIds).toContain('user-1');
-      expect(mockQuestion.options[0].votes).toContain('user-1');
+      expect(res.question.rewardedUserIds).toContain('user-1');
+      expect(res.question.options[0].votes).toContain('user-1');
 
       // Atomic update verified: 50 DNE coins + 20 XP
       expect(userStatUpdateSpy).toHaveBeenCalledWith(
@@ -378,11 +397,21 @@ describe('QOTD System & DailyQuestionService', () => {
           { key: 'B', label: 'Đà Nẵng', votes: [] }
         ],
         correctAnswerKey: 'A',
-        rewardedUserIds: [],
-        save: vi.fn().mockResolvedValue(true)
+        rewardedUserIds: []
+      };
+
+      const updatedQuestion = {
+        ...mockQuestion,
+        options: [
+          { key: 'A', label: 'Hà Nội', votes: [] },
+          { key: 'B', label: 'Đà Nẵng', votes: ['user-2'] }
+        ]
       };
 
       vi.spyOn(DailyQuestionModel, 'findOne').mockResolvedValue(mockQuestion as never);
+      vi.spyOn(DailyQuestionModel, 'findOneAndUpdate')
+        .mockResolvedValueOnce(updatedQuestion as never)
+        .mockResolvedValueOnce(null as never);
       const userStatUpdateSpy = vi.spyOn(UserStatModel, 'findOneAndUpdate');
 
       // User votes wrong answer B
@@ -412,7 +441,7 @@ describe('QOTD System & DailyQuestionService', () => {
       expect(userStatUpdateSpy).not.toHaveBeenCalled();
     });
 
-    it('prevents duplicate rewards if user already received reward', async () => {
+    it('prevents duplicate rewards if user already received reward or concurrent reward failed', async () => {
       const mockQuestion = {
         guildId: 'guild-test-1',
         date: '2026-10-01',
@@ -422,11 +451,18 @@ describe('QOTD System & DailyQuestionService', () => {
           { key: 'A', label: 'Hà Nội', votes: [] }
         ],
         correctAnswerKey: 'A',
-        rewardedUserIds: ['user-1'], // already rewarded
-        save: vi.fn().mockResolvedValue(true)
+        rewardedUserIds: ['user-1']
+      };
+
+      const updatedQuestion = {
+        ...mockQuestion,
+        options: [{ key: 'A', label: 'Hà Nội', votes: ['user-1'] }]
       };
 
       vi.spyOn(DailyQuestionModel, 'findOne').mockResolvedValue(mockQuestion as never);
+      vi.spyOn(DailyQuestionModel, 'findOneAndUpdate')
+        .mockResolvedValueOnce(updatedQuestion as never) // vote
+        .mockResolvedValueOnce(null as never); // reward doc returns null
       const userStatUpdateSpy = vi.spyOn(UserStatModel, 'findOneAndUpdate');
 
       const res = await DailyQuestionService.recordVote({
@@ -437,8 +473,34 @@ describe('QOTD System & DailyQuestionService', () => {
         optionKey: 'A'
       });
 
-      // User already in rewardedUserIds or already answered
+      expect(res.rewardEarned).toBe(false);
       expect(userStatUpdateSpy).not.toHaveBeenCalled();
+    });
+
+    it('prevents double voting in trivia when concurrent requests are sent', async () => {
+      const mockQuestion = {
+        guildId: 'guild-test-1',
+        date: '2026-10-01',
+        type: 'trivia',
+        question: 'Thủ đô của Việt Nam là gì?',
+        options: [{ key: 'A', label: 'Hà Nội', votes: [] }],
+        correctAnswerKey: 'A',
+        rewardedUserIds: []
+      };
+
+      vi.spyOn(DailyQuestionModel, 'findOne').mockResolvedValue(mockQuestion as never);
+      vi.spyOn(DailyQuestionModel, 'findOneAndUpdate').mockResolvedValue(null as never);
+
+      const res = await DailyQuestionService.recordVote({
+        guildId: 'guild-test-1',
+        date: '2026-10-01',
+        userId: 'user-1',
+        username: 'UserOne',
+        optionKey: 'A'
+      });
+
+      expect(res.success).toBe(false);
+      expect(res.error).toMatch(/đã trả lời/i);
     });
   });
 

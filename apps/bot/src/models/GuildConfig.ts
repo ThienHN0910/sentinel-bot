@@ -10,6 +10,7 @@ const GuildConfigSchema = new Schema<GuildConfigDocument>({
   welcomeMessage: { type: String, default: 'Chào mừng {user} đã tham gia phòng thoại!' },
   reportChannelId: { type: String },
   confessionChannelId: { type: String, default: null },
+  qotdChannelId: { type: String, default: null },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });

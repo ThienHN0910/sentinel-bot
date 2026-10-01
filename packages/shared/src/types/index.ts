@@ -64,6 +64,7 @@ export interface IGuildConfig {
   welcomeMessage: string;
   reportChannelId?: string;
   confessionChannelId?: string;
+  qotdChannelId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -166,5 +167,28 @@ export interface IBet {
   expiresAt: Date;
   resolvedAt?: Date;
   createdAt: Date;
+}
+
+export type QuestionType = 'wyr' | 'this_that' | 'trivia';
+
+export interface QuestionBankItem {
+  id: string;
+  type: QuestionType;
+  prompt: string;
+  options: Array<{ key: string; label: string }>;
+  correctKey?: string;
+  explanation?: string;
+}
+
+export interface IDailyQuestion {
+  guildId: string;
+  date: string; // YYYY-MM-DD
+  type: QuestionType;
+  question: string;
+  options: Array<{ key: string; label: string; votes: string[] }>;
+  correctAnswerKey?: string;
+  rewardedUserIds: string[];
+  messageId: string;
+  channelId: string;
 }
 

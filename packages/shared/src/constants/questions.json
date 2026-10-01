@@ -1,0 +1,188 @@
+[
+  {
+    "id": "wyr-01",
+    "type": "wyr",
+    "prompt": "Bạn thà có khả năng tàng hình hay khả năng bay lượn trên bầu trời?",
+    "options": [
+      { "key": "A", "label": "Tàng hình tuyệt đối" },
+      { "key": "B", "label": "Bay lượn tự do" }
+    ]
+  },
+  {
+    "id": "wyr-02",
+    "type": "wyr",
+    "prompt": "Bạn thà không bao giờ phải ngủ mà vẫn tỉnh táo hay không bao giờ cảm thấy đói bụng?",
+    "options": [
+      { "key": "A", "label": "Không bao giờ phải ngủ" },
+      { "key": "B", "label": "Không bao giờ cảm thấy đói" }
+    ]
+  },
+  {
+    "id": "wyr-03",
+    "type": "wyr",
+    "prompt": "Bạn thà sinh tồn ở một hoang đảo cùng nhóm bạn thân hay sống trong căn penthouse sang trọng nhưng một mình?",
+    "options": [
+      { "key": "A", "label": "Hoang đảo cùng bạn thân" },
+      { "key": "B", "label": "Penthouse một mình" }
+    ]
+  },
+  {
+    "id": "wyr-04",
+    "type": "wyr",
+    "prompt": "Bạn thà du hành tới tương lai 100 năm sau hay quay về quá khứ 100 năm trước?",
+    "options": [
+      { "key": "A", "label": "Tương lai 100 năm sau" },
+      { "key": "B", "label": "Quá khứ 100 năm trước" }
+    ]
+  },
+  {
+    "id": "wyr-05",
+    "type": "wyr",
+    "prompt": "Bạn thà lúc nào cũng phải nói sự thật hay lúc nào cũng phải nghe người khác nói sự thật trần trụi về mình?",
+    "options": [
+      { "key": "A", "label": "Luôn phải nói sự thật" },
+      { "key": "B", "label": "Luôn nghe sự thật về mình" }
+    ]
+  },
+  {
+    "id": "wyr-06",
+    "type": "wyr",
+    "prompt": "Bạn thà sở hữu siêu trí tuệ vô song hay thể lực dồi dào không bao giờ mệt mỏi?",
+    "options": [
+      { "key": "A", "label": "Siêu trí tuệ vô song" },
+      { "key": "B", "label": "Thể lực bất tận" }
+    ]
+  },
+  {
+    "id": "tt-01",
+    "type": "this_that",
+    "prompt": "Khi cần nạp năng lượng để bắt đầu buổi làm việc hoặc học tập, bạn chọn:",
+    "options": [
+      { "key": "A", "label": "Trà sữa ngọt ngào" },
+      { "key": "B", "label": "Cà phê đậm đà" }
+    ]
+  },
+  {
+    "id": "tt-02",
+    "type": "this_that",
+    "prompt": "Khung giờ nào trong ngày bạn cảm thấy đầu óc tập trung và làm việc hiệu quả nhất?",
+    "options": [
+      { "key": "A", "label": "Sáng sớm trong lành" },
+      { "key": "B", "label": "Đêm khuya tĩnh mịch" }
+    ]
+  },
+  {
+    "id": "tt-03",
+    "type": "this_that",
+    "prompt": "Chuyến du lịch nghỉ dưỡng lý tưởng nhất trong lòng bạn là:",
+    "options": [
+      { "key": "A", "label": "Lên núi săn mây ngắm rừng" },
+      { "key": "B", "label": "Xuống biển đón sóng ngắm hoàng hôn" }
+    ]
+  },
+  {
+    "id": "tt-04",
+    "type": "this_that",
+    "prompt": "Bạn thuộc hội yêu thú cưng nào hơn?",
+    "options": [
+      { "key": "A", "label": "Những chú cún trung thành" },
+      { "key": "B", "label": "Hoàng thượng mèo đáng yêu" }
+    ]
+  },
+  {
+    "id": "tt-05",
+    "type": "this_that",
+    "prompt": "Khi chơi game cùng bạn bè trong server, bạn thích thể loại nào hơn?",
+    "options": [
+      { "key": "A", "label": "MOBA / Bắn súng căng thẳng try-hard" },
+      { "key": "B", "label": "Co-op / Nông trại / Sinh tồn chill chill" }
+    ]
+  },
+  {
+    "id": "tt-06",
+    "type": "this_that",
+    "prompt": "Hệ sinh thái thiết bị mà bạn ưa thích sử dụng hằng ngày hơn:",
+    "options": [
+      { "key": "A", "label": "Windows & Android tự do tùy biến" },
+      { "key": "B", "label": "Apple macOS & iOS đồng bộ mượt mà" }
+    ]
+  },
+  {
+    "id": "triv-01",
+    "type": "trivia",
+    "prompt": "Đỉnh núi nào được mệnh danh là 'Nóc nhà của Đông Dương'?",
+    "options": [
+      { "key": "A", "label": "Phan Xi Păng (Fansipan)" },
+      { "key": "B", "label": "Pu Si Lung" },
+      { "key": "C", "label": "Bạch Mộc Lương Tử" },
+      { "key": "D", "label": "Tây Côn Lĩnh" }
+    ],
+    "correctKey": "A",
+    "explanation": "Đỉnh Phan Xi Păng cao 3.143m thuộc dãy Hoàng Liên Sơn là đỉnh núi cao nhất 3 nước Đông Dương."
+  },
+  {
+    "id": "triv-02",
+    "type": "trivia",
+    "prompt": "Trong hệ Mặt Trời, hành tinh nào có kích thước và khối lượng lớn nhất?",
+    "options": [
+      { "key": "A", "label": "Sao Thổ" },
+      { "key": "B", "label": "Sao Mộc" },
+      { "key": "C", "label": "Sao Hải Vương" },
+      { "key": "D", "label": "Sao Hỏa" }
+    ],
+    "correctKey": "B",
+    "explanation": "Sao Mộc (Jupiter) là hành tinh lớn nhất trong hệ Mặt Trời, có thể chứa hơn 1.300 Trái Đất bên trong."
+  },
+  {
+    "id": "triv-03",
+    "type": "trivia",
+    "prompt": "Ngôn ngữ lập trình JavaScript được sáng tạo bởi ai vào năm 1995?",
+    "options": [
+      { "key": "A", "label": "James Gosling" },
+      { "key": "B", "label": "Guido van Rossum" },
+      { "key": "C", "label": "Brendan Eich" },
+      { "key": "D", "label": "Dennis Ritchie" }
+    ],
+    "correctKey": "C",
+    "explanation": "Brendan Eich tạo ra JavaScript chỉ trong khoảng 10 ngày vào tháng 5 năm 1995 khi làm việc tại Netscape."
+  },
+  {
+    "id": "triv-04",
+    "type": "trivia",
+    "prompt": "Tỉnh thành nào có diện tích tự nhiên lớn nhất Việt Nam hiện nay?",
+    "options": [
+      { "key": "A", "label": "Nghệ An" },
+      { "key": "B", "label": "Gia Lai" },
+      { "key": "C", "label": "Sơn La" },
+      { "key": "D", "label": "Đắk Lắk" }
+    ],
+    "correctKey": "A",
+    "explanation": "Tỉnh Nghệ An có diện tích tự nhiên lớn nhất Việt Nam với khoảng 16.490 km²."
+  },
+  {
+    "id": "triv-05",
+    "type": "trivia",
+    "prompt": "Khí nào chiếm tỷ lệ phần trăm thể tích lớn nhất trong bầu khí quyển Trái Đất?",
+    "options": [
+      { "key": "A", "label": "Oxy (O2)" },
+      { "key": "B", "label": "Nitơ (N2)" },
+      { "key": "C", "label": "Cacbonic (CO2)" },
+      { "key": "D", "label": "Argon (Ar)" }
+    ],
+    "correctKey": "B",
+    "explanation": "Khí Nitơ (N2) chiếm khoảng 78% thể tích khí quyển Trái Đất, trong khi Oxy chiếm khoảng 21%."
+  },
+  {
+    "id": "triv-06",
+    "type": "trivia",
+    "prompt": "Giao thức tiêu chuẩn mã hóa truyền dữ liệu an toàn trên web ngày nay là gì?",
+    "options": [
+      { "key": "A", "label": "HTTP" },
+      { "key": "B", "label": "FTP" },
+      { "key": "C", "label": "HTTPS / TLS" },
+      { "key": "D", "label": "Telnet" }
+    ],
+    "correctKey": "C",
+    "explanation": "HTTPS kết hợp HTTP với tầng bảo mật TLS/SSL để mã hóa liên lạc giữa trình duyệt và máy chủ."
+  }
+]

@@ -6,3 +6,4 @@ export * from './WheelSession';
 export * from './database';
 export * from './VoiceSession';
 export * from './GameSession';
+export * from './Pet';

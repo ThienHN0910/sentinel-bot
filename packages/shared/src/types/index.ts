@@ -192,3 +192,21 @@ export interface IDailyQuestion {
   channelId: string;
 }
 
+export type PetType = 'cat' | 'dog' | 'dragon' | 'fox';
+export type PetMood = 'happy' | 'hungry' | 'sad';
+
+export interface IPet {
+  guildId: string;
+  userId: string;
+  petType: PetType;
+  name: string;
+  hunger: number;     // 0 - 100
+  happiness: number;  // 0 - 100
+  lastFedAt: Date;
+  lastPlayedAt: Date;
+  adoptedAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+

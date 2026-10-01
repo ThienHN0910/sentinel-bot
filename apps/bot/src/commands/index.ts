@@ -8,3 +8,5 @@ export * from './gacha.js';
 export * from './confess.js';
 export * from './bet.js';
 export * from './qotd.js';
+export * from './pet.js';
+

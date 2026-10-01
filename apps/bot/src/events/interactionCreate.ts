@@ -17,6 +17,8 @@ import {
 } from '../commands/confess.js';
 import { handleBetCommand, handleBetButton } from '../commands/bet.js';
 import { handleQotdCommand, handleQotdButton } from '../commands/qotd.js';
+import { handlePetCommand, handlePetButton } from '../commands/pet.js';
+
 
 /**
  * interactionCreate event handler.
@@ -87,7 +89,13 @@ export async function onInteractionCreate(interaction: Interaction): Promise<voi
       return;
     }
 
+    if (commandName === 'pet') {
+      await handlePetCommand(interaction);
+      return;
+    }
+
     if (commandName === 'help') {
+
       await handleHelpCommand(interaction);
       return;
     }
@@ -119,7 +127,12 @@ export async function onInteractionCreate(interaction: Interaction): Promise<voi
       await handleQotdButton(interaction);
       return;
     }
+    if (interaction.customId.startsWith('pet:')) {
+      await handlePetButton(interaction);
+      return;
+    }
     if (interaction.customId.startsWith('game:')) {
+
       await handleGameButton(interaction);
       return;
     }

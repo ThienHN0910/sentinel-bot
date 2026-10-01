@@ -1,4 +1,6 @@
 import { Client, REST, Routes, SlashCommandBuilder } from 'discord.js';
+import { petSlashCommand } from '../commands/pet.js';
+
 
 /**
  * Slash command definitions.
@@ -260,7 +262,9 @@ export const slashCommands = [
         .setName('post')
         .setDescription('Đăng câu hỏi hôm nay thủ công (Admin)')
     ),
+  petSlashCommand,
   new SlashCommandBuilder().setName('help').setDescription('Xem các lệnh Sentinel đang hỗ trợ')
+
 ].map((cmd) => cmd.toJSON());
 
 /**

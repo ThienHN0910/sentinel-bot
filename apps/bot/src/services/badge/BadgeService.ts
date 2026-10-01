@@ -174,8 +174,21 @@ export class BadgeService {
 
     const updated = await UserStatModel.findOneAndUpdate(
       { guildId, userId },
-      { $addToSet: { unlockedBadges: badgeId } },
-      { new: true }
+      {
+        $addToSet: { unlockedBadges: badgeId },
+        $setOnInsert: {
+          username: 'User',
+          avatar: '',
+          level: 1,
+          exp: 0,
+          dneCoins: 0,
+          totalMessages: 0,
+          totalVoiceSeconds: 0,
+          dailyStreak: 0,
+          repCount: 0
+        }
+      },
+      { upsert: true, new: true }
     );
 
     return !!updated;

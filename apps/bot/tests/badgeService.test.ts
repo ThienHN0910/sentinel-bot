@@ -202,8 +202,16 @@ describe('BadgeService & Achievement System', () => {
       expect(result).toBe(true);
       expect(updateSpy).toHaveBeenCalledWith(
         { guildId: 'guild-1', userId: 'user-1' },
-        { $addToSet: { unlockedBadges: 'gacha_legendary' } },
-        { new: true }
+        expect.objectContaining({
+          $addToSet: { unlockedBadges: 'gacha_legendary' },
+          $setOnInsert: expect.objectContaining({
+            username: 'User',
+            level: 1,
+            exp: 0,
+            dneCoins: 0
+          })
+        }),
+        { upsert: true, new: true }
       );
     });
 
@@ -215,11 +223,22 @@ describe('BadgeService & Achievement System', () => {
       expect(updateSpy).not.toHaveBeenCalled();
     });
 
-    it('returns false if user record is not found', async () => {
-      vi.spyOn(UserStatModel, 'findOneAndUpdate').mockResolvedValue(null);
+    it('returns true and upserts record even if user has no prior stats', async () => {
+      const updateSpy = vi.spyOn(UserStatModel, 'findOneAndUpdate').mockResolvedValue({
+        guildId: 'guild-1',
+        userId: 'brand-new-user',
+        unlockedBadges: ['voice_night']
+      } as any);
 
-      const result = await BadgeService.unlockBadge('guild-1', 'user-1', 'voice_night');
-      expect(result).toBe(false);
+      const result = await BadgeService.unlockBadge('guild-1', 'brand-new-user', 'voice_night');
+      expect(result).toBe(true);
+      expect(updateSpy).toHaveBeenCalledWith(
+        { guildId: 'guild-1', userId: 'brand-new-user' },
+        expect.objectContaining({
+          $addToSet: { unlockedBadges: 'voice_night' }
+        }),
+        { upsert: true, new: true }
+      );
     });
   });
 

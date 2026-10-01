@@ -191,10 +191,12 @@ export class PetService {
       throw new Error('Bạn không đủ DNE Coins để mua thức ăn cho pet (cần 10 xu)!');
     }
 
+    const now = new Date();
+    const currentMood = PetService.calculateMood(pet, now);
     const newHunger = 100;
-    const restoredHunger = Math.max(0, 100 - pet.hunger);
-    const newHappiness = Math.min(100, pet.happiness + 15);
-    const restoredHappiness = newHappiness - pet.happiness;
+    const restoredHunger = Math.max(0, 100 - currentMood.currentHunger);
+    const newHappiness = Math.min(100, currentMood.currentHappiness + 15);
+    const restoredHappiness = newHappiness - currentMood.currentHappiness;
 
     const updatedPet = await PetModel.findOneAndUpdate(
       { guildId: params.guildId, userId: params.userId },
@@ -202,8 +204,8 @@ export class PetService {
         $set: {
           hunger: newHunger,
           happiness: newHappiness,
-          lastFedAt: new Date(),
-          updatedAt: new Date()
+          lastFedAt: now,
+          updatedAt: now
         }
       },
       { new: true }
@@ -239,13 +241,15 @@ export class PetService {
       throw new Error(`Thú cưng đang mệt, hãy đợi thêm ${remainingMinutes} phút để chơi tiếp!`);
     }
 
-    const newHappiness = Math.min(100, pet.happiness + 25);
-    const restoredHappiness = newHappiness - pet.happiness;
+    const currentMood = PetService.calculateMood(pet, now);
+    const newHappiness = Math.min(100, currentMood.currentHappiness + 25);
+    const restoredHappiness = newHappiness - currentMood.currentHappiness;
 
     const updatedPet = await PetModel.findOneAndUpdate(
       { guildId: params.guildId, userId: params.userId },
       {
         $set: {
+          hunger: currentMood.currentHunger,
           happiness: newHappiness,
           lastPlayedAt: now,
           updatedAt: now

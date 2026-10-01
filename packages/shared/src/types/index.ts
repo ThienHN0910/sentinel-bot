@@ -63,8 +63,17 @@ export interface IGuildConfig {
   welcomeVoiceTts: boolean;
   welcomeMessage: string;
   reportChannelId?: string;
+  confessionChannelId?: string;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface IConfession {
+  guildId: string;
+  confessionNumber: number;
+  content: string;
+  messageId: string;
+  createdAt: Date;
 }
 
 export interface GuildSettingsInput {

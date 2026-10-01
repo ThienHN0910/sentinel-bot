@@ -71,6 +71,24 @@ export const slashCommands = [
       .setDescription('Loại bảng xếp hạng')
       .setRequired(true)
       .addChoices({ name: 'Chat', value: 'chat' }, { name: 'Voice', value: 'voice' })),
+  new SlashCommandBuilder()
+    .setName('daily')
+    .setDescription('Điểm danh nhận DNE Coins hằng ngày và duy trì chuỗi streak'),
+  new SlashCommandBuilder()
+    .setName('rep')
+    .setDescription('Tặng điểm tín nhiệm / yêu mến cho thành viên khác (tối đa 3 lần/ngày)')
+    .addUserOption((opt) =>
+      opt.setName('user').setDescription('Thành viên bạn muốn +rep').setRequired(true)
+    )
+    .addStringOption((opt) =>
+      opt.setName('reason').setDescription('Lời khen hoặc lý do (tùy chọn)').setMaxLength(500)
+    ),
+  new SlashCommandBuilder()
+    .setName('gacha')
+    .setDescription('Vòng quay may mắn nhận DNE Coins, XP và vật phẩm')
+    .addSubcommand((sub) =>
+      sub.setName('spin').setDescription('Quay gacha (1 lượt miễn phí mỗi ngày, sau đó 200 DNE Coins)')
+    ),
   new SlashCommandBuilder().setName('help').setDescription('Xem các lệnh Sentinel đang hỗ trợ')
 ].map((cmd) => cmd.toJSON());
 

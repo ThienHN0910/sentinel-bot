@@ -120,6 +120,6 @@ describe('statistics commands', () => {
     expect(message).toContain('/random');
     expect(message).toContain('/game');
     expect(message).toContain('/stats');
-    expect(message).not.toContain('/daily');
+    expect(message).not.toContain('/unknown');
   });
 });

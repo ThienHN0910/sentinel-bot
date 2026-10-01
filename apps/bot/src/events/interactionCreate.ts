@@ -6,6 +6,9 @@ import { handleLeaderboardCommand } from '../commands/leaderboard.js';
 import { handleHelpCommand } from '../commands/help.js';
 import { handleRemindCommand } from '../commands/remind.js';
 import { handleServerStatsCommand } from '../commands/serverstats.js';
+import { handleDailyCommand } from '../commands/daily.js';
+import { handleRepCommand } from '../commands/rep.js';
+import { handleGachaCommand } from '../commands/gacha.js';
 import { handleGameButton } from '../commands/gameSessions.js';
 
 /**
@@ -44,6 +47,21 @@ export async function onInteractionCreate(interaction: Interaction): Promise<voi
 
     if (commandName === 'leaderboard') {
       await handleLeaderboardCommand(interaction);
+      return;
+    }
+
+    if (commandName === 'daily') {
+      await handleDailyCommand(interaction);
+      return;
+    }
+
+    if (commandName === 'rep') {
+      await handleRepCommand(interaction);
+      return;
+    }
+
+    if (commandName === 'gacha') {
+      await handleGachaCommand(interaction);
       return;
     }
 

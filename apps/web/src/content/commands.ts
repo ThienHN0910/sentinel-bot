@@ -85,6 +85,27 @@ export const commands: CommandDoc[] = [
     note: 'Thời gian voice đang tham gia được tính ước lượng cho đến khi phiên kết thúc.'
   },
   {
+    name: 'Điểm danh hằng ngày',
+    syntax: '/daily',
+    summary: 'Điểm danh nhận DNE Coins hằng ngày và duy trì chuỗi streak thưởng.',
+    example: '/daily',
+    note: 'Mỗi ngày điểm danh 1 lần. Chuỗi streak tối đa 7 ngày với phần thưởng xu tăng dần.'
+  },
+  {
+    name: 'Tặng điểm uy tín (+rep)',
+    syntax: '/rep user:<thành viên> [reason:<lý do>]',
+    summary: 'Tặng điểm tín nhiệm / yêu mến cho thành viên khác trong server (tối đa 3 lần mỗi ngày).',
+    example: '/rep user:@Thien reason:Hỗ trợ nhiệt tình',
+    note: 'Không thể tự +rep cho bản thân hoặc bot. Lượt tặng làm mới lúc 00:00 UTC+7.'
+  },
+  {
+    name: 'Vòng quay Gacha may mắn',
+    syntax: '/gacha spin',
+    summary: 'Quay gacha may mắn nhận DNE Coins, XP và danh hiệu/vật phẩm độc đáo.',
+    example: '/gacha spin',
+    note: 'Nhận 1 lượt quay miễn phí mỗi ngày, các lượt tiếp theo tốn 200 DNE Coins. Có cơ chế bảo hiểm (pity) trúng vật phẩm hiếm.'
+  },
+  {
     name: 'Trợ giúp',
     syntax: '/help',
     summary: 'Xem danh sách slash command bot đang đăng ký.',

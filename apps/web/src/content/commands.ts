@@ -127,6 +127,27 @@ export const commands: CommandDoc[] = [
     note: 'Bot tự động đăng câu hỏi mới vào 10:00 sáng mỗi ngày tại kênh đã cấu hình. Mỗi người chỉ nhận thưởng Trivia đúng 1 lần/ngày.'
   },
   {
+    name: 'Thú cưng đồng hành',
+    syntax: '/pet adopt · /pet status · /pet feed · /pet play',
+    summary: 'Nuôi và chăm sóc thú cưng ảo (Mèo, Chó, Rồng, Cáo). Cam kết không bao giờ bỏ rơi hay biến mất (Zero-Death Guarantee).',
+    example: '/pet adopt type:cat name:Mochi',
+    note: 'Cho ăn tốn 10 DNE Coins. Chơi đùa tăng độ vui vẻ (hồi chiêu 15 phút). Hỗ trợ tương tác nhanh bằng nút bấm trực tiếp.'
+  },
+  {
+    name: 'Huy hiệu thành tựu',
+    syntax: '/badge list · /badge equip id:<mã> · /badge unequip',
+    summary: 'Bộ sưu tập 10 huy hiệu thành tựu tự động mở khóa qua các mốc chat, voice, chuỗi điểm danh, tài chính và gacha.',
+    example: '/badge equip id:streak_7',
+    note: 'Huy hiệu đã trang bị sẽ xuất hiện nổi bật trên hồ sơ cá nhân và danh hiệu thành viên server.'
+  },
+  {
+    name: 'Hồ sơ cá nhân tổng hợp',
+    syntax: '/profile [user:<thành viên>]',
+    summary: 'Xem hồ sơ cá nhân toàn diện: cấp độ, thanh tiến trình XP, tài chính, uy tín, số giờ voice, tin nhắn và thú cưng.',
+    example: '/profile',
+    note: 'Tích hợp nút bấm mở ngăn tủ huy hiệu thành tựu để xem toàn bộ danh hiệu đã mở khóa và tiến độ mở khóa các huy hiệu còn lại.'
+  },
+  {
     name: 'Trợ giúp',
     syntax: '/help',
     summary: 'Xem danh sách slash command bot đang đăng ký.',

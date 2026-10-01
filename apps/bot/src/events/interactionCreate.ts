@@ -18,6 +18,8 @@ import {
 import { handleBetCommand, handleBetButton } from '../commands/bet.js';
 import { handleQotdCommand, handleQotdButton } from '../commands/qotd.js';
 import { handlePetCommand, handlePetButton } from '../commands/pet.js';
+import { handleBadgeCommand } from '../commands/badge.js';
+import { handleProfileCommand, handleProfileButton } from '../commands/profile.js';
 
 
 /**
@@ -94,6 +96,16 @@ export async function onInteractionCreate(interaction: Interaction): Promise<voi
       return;
     }
 
+    if (commandName === 'badge') {
+      await handleBadgeCommand(interaction);
+      return;
+    }
+
+    if (commandName === 'profile') {
+      await handleProfileCommand(interaction);
+      return;
+    }
+
     if (commandName === 'help') {
 
       await handleHelpCommand(interaction);
@@ -129,6 +141,10 @@ export async function onInteractionCreate(interaction: Interaction): Promise<voi
     }
     if (interaction.customId.startsWith('pet:')) {
       await handlePetButton(interaction);
+      return;
+    }
+    if (interaction.customId.startsWith('profile:badges:')) {
+      await handleProfileButton(interaction);
       return;
     }
     if (interaction.customId.startsWith('game:')) {

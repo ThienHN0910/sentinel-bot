@@ -1,5 +1,7 @@
 import { Client, REST, Routes, SlashCommandBuilder } from 'discord.js';
 import { petSlashCommand } from '../commands/pet.js';
+import { badgeSlashCommand } from '../commands/badge.js';
+import { profileSlashCommand } from '../commands/profile.js';
 
 
 /**
@@ -263,6 +265,8 @@ export const slashCommands = [
         .setDescription('Đăng câu hỏi hôm nay thủ công (Admin)')
     ),
   petSlashCommand,
+  badgeSlashCommand,
+  profileSlashCommand,
   new SlashCommandBuilder().setName('help').setDescription('Xem các lệnh Sentinel đang hỗ trợ')
 
 ].map((cmd) => cmd.toJSON());

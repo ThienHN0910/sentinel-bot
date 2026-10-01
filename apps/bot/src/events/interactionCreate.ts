@@ -10,6 +10,11 @@ import { handleDailyCommand } from '../commands/daily.js';
 import { handleRepCommand } from '../commands/rep.js';
 import { handleGachaCommand } from '../commands/gacha.js';
 import { handleGameButton } from '../commands/gameSessions.js';
+import {
+  handleConfessCommand,
+  handleConfessModalSubmit,
+  handleConfessButton
+} from '../commands/confess.js';
 
 /**
  * interactionCreate event handler.
@@ -65,6 +70,11 @@ export async function onInteractionCreate(interaction: Interaction): Promise<voi
       return;
     }
 
+    if (commandName === 'confess') {
+      await handleConfessCommand(interaction);
+      return;
+    }
+
     if (commandName === 'help') {
       await handleHelpCommand(interaction);
       return;
@@ -73,8 +83,22 @@ export async function onInteractionCreate(interaction: Interaction): Promise<voi
     return;
   }
 
+  // ── Modal Submissions ───────────────────────────────────────────────────
+  if (interaction.isModalSubmit()) {
+    if (interaction.customId === 'confess_modal') {
+      await handleConfessModalSubmit(interaction);
+      return;
+    }
+
+    return;
+  }
+
   // ── Button Interactions ───────────────────────────────────────────────────
   if (interaction.isButton()) {
+    if (interaction.customId.startsWith('confess:')) {
+      await handleConfessButton(interaction);
+      return;
+    }
     if (interaction.customId.startsWith('game:')) {
       await handleGameButton(interaction);
       return;

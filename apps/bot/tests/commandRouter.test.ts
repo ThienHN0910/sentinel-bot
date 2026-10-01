@@ -94,6 +94,15 @@ describe('Command Router & Registration Integration', () => {
 
       expect(commandsIndex).toHaveProperty('handleGachaCommand');
       expect(typeof (commandsIndex as any).handleGachaCommand).toBe('function');
+
+      expect(commandsIndex).toHaveProperty('handleStatsCommand');
+      expect(typeof (commandsIndex as any).handleStatsCommand).toBe('function');
+
+      expect(commandsIndex).toHaveProperty('handleLeaderboardCommand');
+      expect(typeof (commandsIndex as any).handleLeaderboardCommand).toBe('function');
+
+      expect(commandsIndex).toHaveProperty('handleHelpCommand');
+      expect(typeof (commandsIndex as any).handleHelpCommand).toBe('function');
     });
   });
 

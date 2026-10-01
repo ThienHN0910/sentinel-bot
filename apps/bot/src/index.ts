@@ -16,7 +16,7 @@
 import 'dotenv/config';
 
 import mongoose from 'mongoose';
-import { Client, GatewayIntentBits } from 'discord.js';
+import { Client, GatewayIntentBits, Partials } from 'discord.js';
 
 import { connectDatabase } from './models/database.js';
 import { GovernorManager } from './governor/GovernorManager.js';
@@ -51,8 +51,10 @@ const client = new Client({
     GatewayIntentBits.GuildVoiceStates,
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.GuildMembers
-  ]
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.DirectMessages
+  ],
+  partials: [Partials.Channel, Partials.Message]
 });
 
 // ── Fastify server (module-scoped so shutdown() can close it) ────────────────

@@ -136,3 +136,35 @@ export type WheelSocketEvent =
 
 export type WheelEventPayload = WheelSocketEvent;
 export * from './game';
+
+export type BetKind = 'p2p' | 'pool';
+export type BetStatus = 'open' | 'active' | 'locked' | 'resolved' | 'cancelled';
+
+export interface Wager {
+  userId: string;
+  username: string;
+  option: string;
+  amount: number;
+  createdAt: Date;
+}
+
+export interface IBet {
+  betId: string;
+  guildId: string;
+  kind: BetKind;
+  creatorId: string;
+  creatorUsername: string;
+  opponentId?: string;
+  opponentUsername?: string;
+  title: string;
+  options: string[];
+  wagers: Wager[];
+  status: BetStatus;
+  winnerOption?: string;
+  winnerUserId?: string;
+  totalPool: number;
+  expiresAt: Date;
+  resolvedAt?: Date;
+  createdAt: Date;
+}
+

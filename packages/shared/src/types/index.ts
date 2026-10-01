@@ -17,6 +17,8 @@ export interface IUserStat {
   lastGachaAt?: Date;
   gachaPity?: number;
   mentionedUsers: Record<string, number>;
+  unlockedBadges?: string[];
+  equippedBadge?: string | null;
   updatedAt: Date;
 }
 
@@ -209,4 +211,12 @@ export interface IPet {
   updatedAt: Date;
 }
 
+export type BadgeCategory = 'chat' | 'voice' | 'economy' | 'social' | 'luck';
 
+export interface IBadge {
+  id: string;
+  name: string;
+  description: string;
+  emoji: string;
+  category: BadgeCategory;
+}

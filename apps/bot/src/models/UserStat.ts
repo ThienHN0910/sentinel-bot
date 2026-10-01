@@ -22,6 +22,8 @@ const UserStatSchema = new Schema<UserStatDocument>({
   lastGachaAt: { type: Date },
   gachaPity: { type: Number, default: 0 },
   mentionedUsers: { type: Map, of: Number, default: {} },
+  unlockedBadges: { type: [String], default: [] },
+  equippedBadge: { type: String, default: null },
   updatedAt: { type: Date, default: Date.now }
 });
 

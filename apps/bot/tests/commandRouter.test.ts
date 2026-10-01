@@ -94,6 +94,15 @@ describe('Command Router & Registration Integration', () => {
 
       expect(commandsIndex).toHaveProperty('handleGachaCommand');
       expect(typeof (commandsIndex as any).handleGachaCommand).toBe('function');
+
+      expect(commandsIndex).toHaveProperty('handleStatsCommand');
+      expect(typeof (commandsIndex as any).handleStatsCommand).toBe('function');
+
+      expect(commandsIndex).toHaveProperty('handleLeaderboardCommand');
+      expect(typeof (commandsIndex as any).handleLeaderboardCommand).toBe('function');
+
+      expect(commandsIndex).toHaveProperty('handleHelpCommand');
+      expect(typeof (commandsIndex as any).handleHelpCommand).toBe('function');
     });
   });
 
@@ -121,15 +130,27 @@ describe('Command Router & Registration Integration', () => {
   });
 
   describe('/help command integration', () => {
-    it('includes /daily, /rep, and /gacha in /help output', async () => {
+    it('returns rich embed categorized help with all feature clusters', async () => {
       const interaction = createMockChatInputInteraction('help');
       await handleHelpCommand(interaction);
 
       expect(interaction.reply).toHaveBeenCalledTimes(1);
       const callArgs = (interaction.reply as any).mock.calls[0][0];
-      expect(callArgs.content).toContain('/daily — Điểm danh nhận DNE Coins hằng ngày và duy trì chuỗi streak');
-      expect(callArgs.content).toContain('/rep — Tặng điểm tín nhiệm / yêu mến cho thành viên khác (tối đa 3 lần/ngày)');
-      expect(callArgs.content).toContain('/gacha — Vòng quay may mắn nhận DNE Coins, XP và vật phẩm');
+      expect(callArgs.ephemeral).toBe(true);
+      expect(callArgs.embeds).toBeDefined();
+      expect(callArgs.embeds.length).toBe(1);
+
+      const embed = callArgs.embeds[0];
+      const allFieldsText = embed.data.fields.map((f: any) => `${f.name}\n${f.value}`).join('\n');
+      expect(allFieldsText).toContain('/daily');
+      expect(allFieldsText).toContain('/rep');
+      expect(allFieldsText).toContain('/gacha');
+      expect(allFieldsText).toContain('🎮 Giải Trí & Mini-Games');
+      expect(allFieldsText).toContain('💰 Kinh Tế & Tiến Trình');
+      expect(allFieldsText).toContain('💬 Cộng Đồng & Xã Hội');
+      expect(allFieldsText).toContain('🐾 Thú Cưng & Danh Hiệu');
+      expect(allFieldsText).toContain('📊 Thống Kê & Tiện Ích');
     });
   });
 });
+

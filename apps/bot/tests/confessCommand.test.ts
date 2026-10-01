@@ -9,6 +9,7 @@ import {
   clearPendingDmConfessions
 } from '../src/commands/confess';
 import { ConfessionService } from '../src/services/confession/ConfessionService';
+import { GuildConfigModel } from '../src/models/GuildConfig';
 import { onInteractionCreate } from '../src/events/interactionCreate';
 import { onMessageCreate } from '../src/events/messageCreate';
 import { AnalyticsService } from '../src/services/analytics/AnalyticsService';
@@ -18,6 +19,7 @@ function createMockChatInputInteraction(options: {
   userId?: string;
   subcommand?: string | null;
   confessionNumber?: number;
+  channelId?: string;
   hasManageGuild?: boolean;
 }) {
   const {
@@ -25,6 +27,7 @@ function createMockChatInputInteraction(options: {
     userId = 'user-abc',
     subcommand = null,
     confessionNumber = 1,
+    channelId = 'channel-confess-456',
     hasManageGuild = true
   } = options;
 
@@ -47,7 +50,11 @@ function createMockChatInputInteraction(options: {
     options: {
       getSubcommand: vi.fn().mockReturnValue(subcommand),
       getInteger: vi.fn().mockImplementation((name: string) => {
-        if (name === 'number') return confessionNumber;
+        if (name === 'number' || name === 'id') return confessionNumber;
+        return null;
+      }),
+      getChannel: vi.fn().mockImplementation((name: string) => {
+        if (name === 'channel') return { id: channelId };
         return null;
       })
     },
@@ -267,6 +274,72 @@ describe('Confess Command & Interactions', () => {
       expect(interaction.editReply).toHaveBeenCalledWith(
         expect.objectContaining({
           content: expect.stringContaining('Không tìm thấy confession #99')
+        })
+      );
+    });
+
+    it('works with "id" option as registered in ready.ts', async () => {
+      const interaction = createMockChatInputInteraction({
+        subcommand: 'delete',
+        hasManageGuild: true,
+        confessionNumber: 12
+      });
+
+      const deleteSpy = vi.spyOn(ConfessionService, 'deleteConfession').mockResolvedValue(true);
+
+      await handleConfessCommand(interaction);
+
+      expect(deleteSpy).toHaveBeenCalledWith({
+        guildId: 'guild-123',
+        confessionNumber: 12,
+        client: interaction.client
+      });
+      expect(interaction.editReply).toHaveBeenCalledWith(
+        expect.objectContaining({
+          content: expect.stringContaining('Đã xóa confession #12')
+        })
+      );
+    });
+  });
+
+  describe('Admin Subcommand /confess config', () => {
+    it('rejects user without ManageGuild permission', async () => {
+      const interaction = createMockChatInputInteraction({
+        subcommand: 'config',
+        hasManageGuild: false
+      });
+
+      await handleConfessCommand(interaction);
+
+      expect(interaction.reply).toHaveBeenCalledWith(
+        expect.objectContaining({
+          content: expect.stringContaining('quyền'),
+          ephemeral: true
+        })
+      );
+    });
+
+    it('updates confessionChannelId in GuildConfigModel when authorized', async () => {
+      const interaction = createMockChatInputInteraction({
+        subcommand: 'config',
+        hasManageGuild: true,
+        channelId: 'channel-confess-777'
+      });
+
+      const findOneAndUpdateSpy = vi.spyOn(GuildConfigModel, 'findOneAndUpdate').mockResolvedValue({} as any);
+
+      await handleConfessCommand(interaction);
+
+      expect(findOneAndUpdateSpy).toHaveBeenCalledWith(
+        { guildId: 'guild-123' },
+        expect.objectContaining({
+          $set: expect.objectContaining({ confessionChannelId: 'channel-confess-777' })
+        }),
+        { upsert: true }
+      );
+      expect(interaction.reply).toHaveBeenCalledWith(
+        expect.objectContaining({
+          content: expect.stringContaining('<#channel-confess-777>')
         })
       );
     });

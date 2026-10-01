@@ -13,6 +13,7 @@ import {
   type ModalSubmitInteraction
 } from 'discord.js';
 import { ConfessionService } from '../services/confession/ConfessionService.js';
+import { GuildConfigModel } from '../models/GuildConfig.js';
 
 export interface PendingDmConfession {
   content: string;
@@ -27,12 +28,50 @@ export function clearPendingDmConfessions(): void {
 
 /**
  * Slash command handler for /confess.
- * Supports /confess (opens submission modal) and /confess delete (admin removal).
+ * Supports /confess send (opens modal), /confess config (sets channel), and /confess delete (admin removal).
  */
 export async function handleConfessCommand(interaction: ChatInputCommandInteraction): Promise<void> {
   const subcommand = interaction.options.getSubcommand(false);
 
-  // Administrative deletion: /confess delete number:<id>
+  // Administrative channel config: /confess config channel:<#channel>
+  if (subcommand === 'config') {
+    if (!interaction.guildId) {
+      await interaction.reply({ content: 'Lệnh này chỉ dùng trong server Discord.', ephemeral: true });
+      return;
+    }
+
+    const isAuthorized =
+      interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild) ||
+      (interaction.member?.permissions as any)?.has?.(PermissionFlagsBits.ManageGuild) ||
+      (interaction.member?.permissions as any)?.has?.('ManageGuild');
+
+    if (!isAuthorized) {
+      await interaction.reply({
+        content: '❌ Bạn cần có quyền Quản lý Server (Manage Server) để cấu hình kênh confession.',
+        ephemeral: true
+      });
+      return;
+    }
+
+    const channel = interaction.options.getChannel('channel', true);
+
+    await GuildConfigModel.findOneAndUpdate(
+      { guildId: interaction.guildId },
+      {
+        $set: { confessionChannelId: channel.id, updatedAt: new Date() },
+        $setOnInsert: { name: interaction.guild?.name || 'Server' }
+      },
+      { upsert: true }
+    );
+
+    await interaction.reply({
+      content: `✅ Đã cấu hình thành công kênh nhận confession: <#${channel.id}>`,
+      ephemeral: true
+    });
+    return;
+  }
+
+  // Administrative deletion: /confess delete id:<number> (or number:<number>)
   if (subcommand === 'delete') {
     if (!interaction.guildId) {
       await interaction.reply({ content: 'Lệnh này chỉ dùng trong server Discord.', ephemeral: true });
@@ -52,7 +91,7 @@ export async function handleConfessCommand(interaction: ChatInputCommandInteract
       return;
     }
 
-    const confessionNumber = interaction.options.getInteger('number', true);
+    const confessionNumber = interaction.options.getInteger('id') ?? interaction.options.getInteger('number', true);
     await interaction.deferReply({ ephemeral: true });
 
     try {

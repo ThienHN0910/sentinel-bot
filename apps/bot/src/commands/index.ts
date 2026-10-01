@@ -11,3 +11,6 @@ export * from './qotd.js';
 export * from './pet.js';
 export * from './badge.js';
 export * from './profile.js';
+export * from './stats.js';
+export * from './leaderboard.js';
+export * from './help.js';

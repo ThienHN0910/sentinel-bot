@@ -11,8 +11,18 @@ export interface IUserStat {
   dneCoins: number;
   dailyStreak: number;
   lastDailyAt?: Date;
+  repCount?: number;
+  repGivenToday?: number;
+  lastRepResetAt?: Date;
   mentionedUsers: Record<string, number>;
   updatedAt: Date;
+}
+
+export interface RepResult {
+  success: boolean;
+  giverRemaining: number;
+  receiverRepCount: number;
+  error?: string;
 }
 
 export type RankingMetric = 'chat' | 'voice' | 'level';

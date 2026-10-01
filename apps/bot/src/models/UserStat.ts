@@ -16,6 +16,9 @@ const UserStatSchema = new Schema<UserStatDocument>({
   dneCoins: { type: Number, default: 0 },
   dailyStreak: { type: Number, default: 0 },
   lastDailyAt: { type: Date },
+  repCount: { type: Number, default: 0 },
+  repGivenToday: { type: Number, default: 0 },
+  lastRepResetAt: { type: Date },
   mentionedUsers: { type: Map, of: Number, default: {} },
   updatedAt: { type: Date, default: Date.now }
 });

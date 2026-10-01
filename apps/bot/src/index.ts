@@ -23,6 +23,7 @@ import { GovernorManager } from './governor/GovernorManager.js';
 import { buildFastifyServer } from './api/server.js';
 import { ReminderService } from './services/reminder/ReminderService.js';
 import { scheduleWeeklyReports } from './services/analytics/WeeklyReportCron.js';
+import { DailyQuestionService } from './services/qotd/DailyQuestionService.js';
 
 import { onReady } from './events/ready.js';
 import { onMessageCreate } from './events/messageCreate.js';
@@ -59,6 +60,7 @@ let server: Awaited<ReturnType<typeof buildFastifyServer>>;
 let stopVoiceObservation: (() => void) | undefined;
 let voiceRetryTimer: ReturnType<typeof setTimeout> | undefined;
 let weeklyReportTask: { stop(): void } | undefined;
+let qotdCronTask: { stop(): void } | undefined;
 
 // ── Governor ─────────────────────────────────────────────────────────────────
 const governor = new GovernorManager();
@@ -78,6 +80,7 @@ async function shutdown(signal: string): Promise<void> {
   // 2. Stop reminder polling
   ReminderService.stopPolling();
   weeklyReportTask?.stop();
+  qotdCronTask?.stop();
   stopVoiceObservation?.();
   if (voiceRetryTimer) clearTimeout(voiceRetryTimer);
 
@@ -121,6 +124,7 @@ async function bootstrap(): Promise<void> {
   // 4. Discord event handlers
   client.once('ready', (c) => {
     weeklyReportTask ??= scheduleWeeklyReports(c);
+    qotdCronTask ??= DailyQuestionService.startDailyCron(c);
     const initializeVoice = async () => {
       try {
         await reconcileVoiceSessions(c);

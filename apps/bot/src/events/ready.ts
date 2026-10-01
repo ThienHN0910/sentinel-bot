@@ -89,6 +89,177 @@ export const slashCommands = [
     .addSubcommand((sub) =>
       sub.setName('spin').setDescription('Quay gacha (1 lượt miễn phí mỗi ngày, sau đó 200 DNE Coins)')
     ),
+  new SlashCommandBuilder()
+    .setName('confess')
+    .setDescription('Gửi tin nhắn ẩn danh vào kênh confession của server')
+    .addSubcommand((sub) =>
+      sub
+        .setName('send')
+        .setDescription('Gửi confession ẩn danh qua form nhập liệu')
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('config')
+        .setDescription('Cấu hình kênh nhận confession (Admin)')
+        .addChannelOption((opt) =>
+          opt
+            .setName('channel')
+            .setDescription('Kênh text nhận confession')
+            .setRequired(true)
+        )
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('delete')
+        .setDescription('Xóa bài confession theo ID (Admin)')
+        .addIntegerOption((opt) =>
+          opt
+            .setName('id')
+            .setDescription('Mã số confession (#ID)')
+            .setRequired(true)
+        )
+    ),
+  new SlashCommandBuilder()
+    .setName('bet')
+    .setDescription('Hệ thống cá cược: thách đấu 1v1 hoặc tạo kèo cộng đồng')
+    .addSubcommand((sub) =>
+      sub
+        .setName('challenge')
+        .setDescription('Thách đấu 1v1 với thành viên khác')
+        .addUserOption((opt) =>
+          opt.setName('user').setDescription('Đối thủ muốn thách đấu').setRequired(true)
+        )
+        .addIntegerOption((opt) =>
+          opt
+            .setName('amount')
+            .setDescription('Số DNE Coins đặt cược (tối thiểu 10)')
+            .setRequired(true)
+            .setMinValue(10)
+        )
+        .addStringOption((opt) =>
+          opt
+            .setName('title')
+            .setDescription('Tiêu đề kèo thách đấu')
+            .setRequired(true)
+            .setMaxLength(200)
+        )
+        .addStringOption((opt) =>
+          opt
+            .setName('pick')
+            .setDescription('Lựa chọn của bạn')
+            .setRequired(true)
+            .setMaxLength(50)
+        )
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('accept')
+        .setDescription('Chấp nhận lời thách đấu 1v1')
+        .addStringOption((opt) =>
+          opt.setName('id').setDescription('Mã kèo thách đấu (Bet ID)').setRequired(true)
+        )
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('cancel')
+        .setDescription('Hủy hoặc từ chối kèo thách đấu 1v1')
+        .addStringOption((opt) =>
+          opt.setName('id').setDescription('Mã kèo thách đấu (Bet ID)').setRequired(true)
+        )
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('pool-create')
+        .setDescription('Tạo kèo cá cược cộng đồng')
+        .addStringOption((opt) =>
+          opt
+            .setName('title')
+            .setDescription('Tiêu đề sự kiện cá cược')
+            .setRequired(true)
+            .setMaxLength(200)
+        )
+        .addStringOption((opt) =>
+          opt
+            .setName('options')
+            .setDescription('Các lựa chọn phân cách bằng dấu phẩy (tối thiểu 2)')
+            .setRequired(true)
+        )
+        .addStringOption((opt) =>
+          opt
+            .setName('duration')
+            .setDescription('Thời gian mở cược (vd: 30m, 2h, 1d)')
+            .setRequired(false)
+        )
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('pool-join')
+        .setDescription('Đặt cược vào kèo cộng đồng')
+        .addStringOption((opt) =>
+          opt.setName('id').setDescription('Mã kèo cộng đồng (Bet ID)').setRequired(true)
+        )
+        .addStringOption((opt) =>
+          opt.setName('option').setDescription('Tên lựa chọn bạn đặt').setRequired(true)
+        )
+        .addIntegerOption((opt) =>
+          opt
+            .setName('amount')
+            .setDescription('Số DNE Coins đặt cược (tối thiểu 10)')
+            .setRequired(true)
+            .setMinValue(10)
+        )
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('pool-resolve')
+        .setDescription('Kết toán và trả thưởng kèo cộng đồng (Admin/Host)')
+        .addStringOption((opt) =>
+          opt.setName('id').setDescription('Mã kèo cộng đồng (Bet ID)').setRequired(true)
+        )
+        .addStringOption((opt) =>
+          opt.setName('winner').setDescription('Lựa chọn chiến thắng').setRequired(true)
+        )
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('p2p-resolve')
+        .setDescription('Kết toán kèo thách đấu 1v1 (Admin hoặc người tham gia)')
+        .addStringOption((opt) =>
+          opt.setName('id').setDescription('Mã kèo 1v1 (Bet ID)').setRequired(true)
+        )
+        .addStringOption((opt) =>
+          opt
+            .setName('winner')
+            .setDescription('Người chiến thắng (creator hoặc opponent)')
+            .setRequired(true)
+        )
+    ),
+  new SlashCommandBuilder()
+    .setName('qotd')
+    .setDescription(
+      'Câu hỏi hằng ngày (Would You Rather, This/That, Trivia thưởng coin + XP)'
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('today')
+        .setDescription('Xem câu hỏi hôm nay và tỷ lệ bình chọn')
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('config')
+        .setDescription('Cấu hình kênh nhận câu hỏi hằng ngày (Admin)')
+        .addChannelOption((opt) =>
+          opt
+            .setName('channel')
+            .setDescription('Kênh text nhận QOTD')
+            .setRequired(true)
+        )
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('post')
+        .setDescription('Đăng câu hỏi hôm nay thủ công (Admin)')
+    ),
   new SlashCommandBuilder().setName('help').setDescription('Xem các lệnh Sentinel đang hỗ trợ')
 ].map((cmd) => cmd.toJSON());
 

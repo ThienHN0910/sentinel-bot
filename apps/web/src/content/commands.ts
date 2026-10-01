@@ -106,6 +106,27 @@ export const commands: CommandDoc[] = [
     note: 'Nhận 1 lượt quay miễn phí mỗi ngày, các lượt tiếp theo tốn 200 DNE Coins. Có cơ chế bảo hiểm (pity) trúng vật phẩm hiếm.'
   },
   {
+    name: 'Confession ẩn danh',
+    syntax: '/confess send · /confess config channel:<#kênh> · /confess delete id:<mã>',
+    summary: 'Gửi tin nhắn ẩn danh 100% không lưu vết vào kênh confession. Hỗ trợ nút thả cảm xúc và quản lý cho admin.',
+    example: '/confess send',
+    note: 'Ẩn danh tuyệt đối: Không lưu ID người gửi vào cơ sở dữ liệu hay log hệ thống. Có thể gửi trực tiếp bằng lệnh hoặc qua tin nhắn riêng (DM) với bot.'
+  },
+  {
+    name: 'Cá cược & Thách đấu',
+    syntax: '/bet challenge · /bet pool-create · /bet pool-join',
+    summary: 'Thách đấu 1v1 hoặc tạo kèo cá cược cộng đồng bằng DNE Coins với cơ chế ký quỹ và trả lời công bằng.',
+    example: '/bet challenge user:@Thien amount:50 title:"Solo Yasuo ai gánh team" pick:"Tôi thắng"',
+    note: 'Tiền cược được tạm giữ an toàn trong tài khoản ký quỹ. Kèo cộng đồng phân phối thưởng theo tỷ lệ pari-mutuel.'
+  },
+  {
+    name: 'Câu hỏi hằng ngày (QOTD)',
+    syntax: '/qotd today · /qotd config channel:<#kênh>',
+    summary: 'Tham gia bình chọn Would You Rather, This or That và trả lời Trivia nhận 50 DNE Coins + 20 XP mỗi ngày.',
+    example: '/qotd today',
+    note: 'Bot tự động đăng câu hỏi mới vào 10:00 sáng mỗi ngày tại kênh đã cấu hình. Mỗi người chỉ nhận thưởng Trivia đúng 1 lần/ngày.'
+  },
+  {
     name: 'Trợ giúp',
     syntax: '/help',
     summary: 'Xem danh sách slash command bot đang đăng ký.',

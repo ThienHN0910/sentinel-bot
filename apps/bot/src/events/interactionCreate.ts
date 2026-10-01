@@ -15,6 +15,8 @@ import {
   handleConfessModalSubmit,
   handleConfessButton
 } from '../commands/confess.js';
+import { handleBetCommand, handleBetButton } from '../commands/bet.js';
+import { handleQotdCommand, handleQotdButton } from '../commands/qotd.js';
 
 /**
  * interactionCreate event handler.
@@ -75,6 +77,16 @@ export async function onInteractionCreate(interaction: Interaction): Promise<voi
       return;
     }
 
+    if (commandName === 'bet') {
+      await handleBetCommand(interaction);
+      return;
+    }
+
+    if (commandName === 'qotd') {
+      await handleQotdCommand(interaction);
+      return;
+    }
+
     if (commandName === 'help') {
       await handleHelpCommand(interaction);
       return;
@@ -97,6 +109,14 @@ export async function onInteractionCreate(interaction: Interaction): Promise<voi
   if (interaction.isButton()) {
     if (interaction.customId.startsWith('confess:')) {
       await handleConfessButton(interaction);
+      return;
+    }
+    if (interaction.customId.startsWith('bet:')) {
+      await handleBetButton(interaction);
+      return;
+    }
+    if (interaction.customId.startsWith('qotd:')) {
+      await handleQotdButton(interaction);
       return;
     }
     if (interaction.customId.startsWith('game:')) {

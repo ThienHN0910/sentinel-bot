@@ -374,7 +374,8 @@ describe('VoiceService.playGreeting', () => {
       guildId: 'g-1',
       adapterCreator: state.guild.voiceAdapterCreator,
       selfDeaf: false,
-      selfMute: false
+      selfMute: false,
+      debug: true
     });
     expect(discordVoice.entersState).toHaveBeenCalledWith(
       mockConnection,

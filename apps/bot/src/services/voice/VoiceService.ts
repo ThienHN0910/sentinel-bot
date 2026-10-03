@@ -202,13 +202,23 @@ export class VoiceService {
         guildId: state.guild.id,
         adapterCreator: state.guild.voiceAdapterCreator as any,
         selfDeaf: false,
-        selfMute: false
+        selfMute: false,
+        debug: true
       });
+
+      if (typeof (connection as any).on === 'function') {
+        (connection as any).on('stateChange', (oldState: any, newState: any) => {
+          console.log(`[Voice] Connection status: ${oldState?.status} -> ${newState?.status}`);
+        });
+        (connection as any).on('debug', (msg: string) => {
+          console.log(`[Voice Debug] ${msg}`);
+        });
+      }
 
       try {
         await entersState(connection, VoiceConnectionStatus.Ready, 15_000);
       } catch (err) {
-        console.error('[Voice] Voice connection timed out waiting for Ready:', err);
+        console.error('[Voice] Voice connection timed out waiting for Ready (UDP handshake likely blocked by host firewall/iptables):', err);
         try {
           connection.destroy();
         } catch {}

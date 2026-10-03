@@ -1,4 +1,5 @@
 import { EmbedBuilder, type ChatInputCommandInteraction } from 'discord.js';
+import { slashCommands } from '../events/ready.js';
 
 /**
  * Builds the rich categorized help embed.
@@ -67,7 +68,13 @@ export function createHelpEmbed(): EmbedBuilder {
 }
 
 export async function handleHelpCommand(interaction: ChatInputCommandInteraction): Promise<void> {
+  const descriptions = slashCommands.map((command) => `/${command.name} — ${command.description}`);
   const embed = createHelpEmbed();
-  await interaction.reply({ embeds: [embed], ephemeral: true });
+  await interaction.reply({
+    content: `Các lệnh đang có:\n${descriptions.join('\n')}`,
+    embeds: [embed],
+    ephemeral: true
+  });
 }
+
 

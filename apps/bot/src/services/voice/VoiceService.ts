@@ -155,20 +155,33 @@ export class VoiceService {
 
   public static async playGreeting(state: VoiceState, message: string) {
     if (!state.channel) return;
-    const connection = joinVoiceChannel({
-      channelId: state.channel.id,
-      guildId: state.guild.id,
-      adapterCreator: state.guild.voiceAdapterCreator as any
-    });
-    const player = createAudioPlayer();
-    const stream = getVietnameseTtsStream(message);
-    const resource = createAudioResource(stream);
-    player.play(resource);
-    connection.subscribe(player);
-    player.on(AudioPlayerStatus.Idle, () => {
-      player.stop();
-      connection.destroy();
-    });
-    player.on('error', () => connection.destroy());
+    try {
+      const connection = joinVoiceChannel({
+        channelId: state.channel.id,
+        guildId: state.guild.id,
+        adapterCreator: state.guild.voiceAdapterCreator as any
+      });
+      const player = createAudioPlayer();
+      const stream = getVietnameseTtsStream(message);
+      const resource = createAudioResource(stream);
+      player.play(resource);
+      connection.subscribe(player);
+      player.on(AudioPlayerStatus.Idle, () => {
+        player.stop();
+        connection.destroy();
+      });
+      player.on('error', (err) => {
+        console.error('[Voice] Audio player error:', err);
+        connection.destroy();
+      });
+      if (typeof (connection as any).on === 'function') {
+        (connection as any).on('error', (err: any) => {
+          console.error('[Voice] Voice connection error:', err);
+          connection.destroy();
+        });
+      }
+    } catch (err) {
+      console.error('[Voice] Failed to play greeting:', err);
+    }
   }
 }

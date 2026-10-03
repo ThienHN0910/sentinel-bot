@@ -15,6 +15,19 @@ vi.mock('@discordjs/voice', () => {
     joinVoiceChannel: vi.fn(),
     createAudioPlayer: vi.fn(),
     createAudioResource: vi.fn(),
+    entersState: vi.fn().mockResolvedValue(undefined),
+    getVoiceConnection: vi.fn(),
+    StreamType: {
+      Arbitrary: 'arbitrary',
+      Raw: 'raw',
+      OggOpus: 'ogg/opus',
+      WebmOpus: 'webm/opus'
+    },
+    NoSubscriberBehavior: {
+      Pause: 'pause',
+      Play: 'play',
+      Stop: 'stop'
+    },
     AudioPlayerStatus: {
       Idle: 'idle',
       Playing: 'playing',
@@ -25,10 +38,13 @@ vi.mock('@discordjs/voice', () => {
     VoiceConnectionStatus: {
       Signalling: 'signalling',
       Connecting: 'connecting',
-      Ready: 'ready'
+      Ready: 'ready',
+      Disconnected: 'disconnected',
+      Destroyed: 'destroyed'
     }
   };
 });
+
 
 describe('Voice Rewards Math', () => {
   it('awards 10 EXP and 5 Coins per 300 seconds (5 mins)', () => {
@@ -235,6 +251,78 @@ describe('VoiceService.handleVoiceStateUpdate', () => {
     await VoiceService.handleVoiceStateUpdate(oldState, newState);
     expect(settleSpy).toHaveBeenCalledWith('g-1', 'user-unknown', expect.any(Date), expect.any(Object));
   });
+
+  it('automatically disconnects bot when last human member leaves the voice channel', async () => {
+    const destroyMock = vi.fn();
+    vi.mocked(discordVoice.getVoiceConnection).mockReturnValue({
+      joinConfig: { channelId: 'vc-100' },
+      destroy: destroyMock
+    } as any);
+
+    const oldChannel = {
+      id: 'vc-100',
+      guild: { id: 'g-1' },
+      members: new Map([
+        ['user-last', { id: 'user-last', user: { bot: false } }],
+        ['bot-id', { id: 'bot-id', user: { bot: true } }]
+      ])
+    };
+
+    const oldState = {
+      channelId: 'vc-100',
+      channel: oldChannel,
+      id: 'user-last',
+      guild: { id: 'g-1', channels: { cache: new Map([['vc-100', oldChannel]]) } },
+      member: { user: { bot: false } }
+    } as any;
+
+    const newState = {
+      channelId: null,
+      id: 'user-last',
+      guild: { id: 'g-1' },
+      member: { user: { bot: false } }
+    } as any;
+
+    await VoiceService.handleVoiceStateUpdate(oldState, newState);
+
+    expect(destroyMock).toHaveBeenCalled();
+  });
+
+  it('does not disconnect bot if other human members remain in the voice channel', async () => {
+    const destroyMock = vi.fn();
+    vi.mocked(discordVoice.getVoiceConnection).mockReturnValue({
+      joinConfig: { channelId: 'vc-100' },
+      destroy: destroyMock
+    } as any);
+
+    const oldChannel = {
+      id: 'vc-100',
+      guild: { id: 'g-1' },
+      members: new Map([
+        ['user-leaving', { id: 'user-leaving', user: { bot: false } }],
+        ['user-staying', { id: 'user-staying', user: { bot: false } }]
+      ])
+    };
+
+    const oldState = {
+      channelId: 'vc-100',
+      channel: oldChannel,
+      id: 'user-leaving',
+      guild: { id: 'g-1' },
+      member: { user: { bot: false } }
+    } as any;
+
+    const newState = {
+      channelId: null,
+      id: 'user-leaving',
+      guild: { id: 'g-1' },
+      member: { user: { bot: false } }
+    } as any;
+
+    await VoiceService.handleVoiceStateUpdate(oldState, newState);
+
+    expect(destroyMock).not.toHaveBeenCalled();
+  });
 });
 
 describe('VoiceService.playGreeting', () => {
@@ -246,7 +334,8 @@ describe('VoiceService.playGreeting', () => {
     playerListeners = {};
     mockConnection = {
       subscribe: vi.fn(),
-      destroy: vi.fn()
+      destroy: vi.fn(),
+      on: vi.fn()
     };
     mockPlayer = {
       play: vi.fn(),
@@ -260,6 +349,7 @@ describe('VoiceService.playGreeting', () => {
     vi.mocked(discordVoice.joinVoiceChannel).mockReturnValue(mockConnection);
     vi.mocked(discordVoice.createAudioPlayer).mockReturnValue(mockPlayer);
     vi.mocked(discordVoice.createAudioResource).mockReturnValue({} as any);
+    vi.mocked(discordVoice.entersState).mockResolvedValue(undefined as any);
   });
 
   it('returns early if state channel is null', async () => {
@@ -270,7 +360,10 @@ describe('VoiceService.playGreeting', () => {
 
   it('joins voice channel, plays audio stream, and disconnects upon Idle', async () => {
     const state = {
-      channel: { id: 'vc-channel-1' },
+      channel: {
+        id: 'vc-channel-1',
+        members: new Map([['user-1', { id: 'user-1', user: { bot: false } }]])
+      },
       guild: { id: 'g-1', voiceAdapterCreator: {} }
     } as any;
 
@@ -279,8 +372,15 @@ describe('VoiceService.playGreeting', () => {
     expect(discordVoice.joinVoiceChannel).toHaveBeenCalledWith({
       channelId: 'vc-channel-1',
       guildId: 'g-1',
-      adapterCreator: state.guild.voiceAdapterCreator
+      adapterCreator: state.guild.voiceAdapterCreator,
+      selfDeaf: false,
+      selfMute: false
     });
+    expect(discordVoice.entersState).toHaveBeenCalledWith(
+      mockConnection,
+      discordVoice.VoiceConnectionStatus.Ready,
+      15000
+    );
     expect(mockPlayer.play).toHaveBeenCalled();
     expect(mockConnection.subscribe).toHaveBeenCalledWith(mockPlayer);
 
@@ -292,9 +392,43 @@ describe('VoiceService.playGreeting', () => {
     expect(mockConnection.destroy).toHaveBeenCalled();
   });
 
+  it('destroys connection and does not play audio if entersState times out', async () => {
+    vi.mocked(discordVoice.entersState).mockRejectedValueOnce(new Error('Ready timeout'));
+    const state = {
+      channel: {
+        id: 'vc-channel-1',
+        members: new Map([['user-1', { id: 'user-1', user: { bot: false } }]])
+      },
+      guild: { id: 'g-1', voiceAdapterCreator: {} }
+    } as any;
+
+    await VoiceService.playGreeting(state, 'Xin chào');
+
+    expect(mockConnection.destroy).toHaveBeenCalled();
+    expect(mockPlayer.play).not.toHaveBeenCalled();
+  });
+
+  it('destroys connection and does not play if channel has no human members', async () => {
+    const state = {
+      channel: {
+        id: 'vc-channel-1',
+        members: new Map([['bot-1', { id: 'bot-1', user: { bot: true } }]])
+      },
+      guild: { id: 'g-1', voiceAdapterCreator: {} }
+    } as any;
+
+    await VoiceService.playGreeting(state, 'Xin chào');
+
+    expect(mockConnection.destroy).toHaveBeenCalled();
+    expect(mockPlayer.play).not.toHaveBeenCalled();
+  });
+
   it('destroys voice connection upon player error', async () => {
     const state = {
-      channel: { id: 'vc-channel-1' },
+      channel: {
+        id: 'vc-channel-1',
+        members: new Map([['user-1', { id: 'user-1', user: { bot: false } }]])
+      },
       guild: { id: 'g-1', voiceAdapterCreator: {} }
     } as any;
 

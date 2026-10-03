@@ -1,12 +1,27 @@
 import mongoose from 'mongoose';
-import { VoiceState } from 'discord.js';
-import { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus } from '@discordjs/voice';
+import { VoiceBasedChannel, VoiceState } from 'discord.js';
+import {
+  joinVoiceChannel,
+  createAudioPlayer,
+  createAudioResource,
+  AudioPlayerStatus,
+  VoiceConnectionStatus,
+  entersState,
+  getVoiceConnection,
+  NoSubscriberBehavior,
+  StreamType
+} from '@discordjs/voice';
+import ffmpegPath from 'ffmpeg-static';
 import { UserStatModel } from '../../models/UserStat';
 import { VoiceSessionModel } from '../../models/VoiceSession';
 import { GuildConfigModel } from '../../models/GuildConfig';
 import { getVietnameseTtsStream } from './ttsStream';
 import { recordActivity } from '../analytics/activity';
 import { DEFAULT_GREETING } from '../settings/GuildSettingsService';
+
+if (ffmpegPath && !process.env.FFMPEG_PATH) {
+  process.env.FFMPEG_PATH = ffmpegPath;
+}
 
 // Kept as a local hint for older callers; MongoDB is the source of truth.
 export const activeVoiceSessions = new Map<string, number>();
@@ -130,11 +145,37 @@ export class VoiceService {
     }
   }
 
+  public static checkAndLeaveIfEmpty(channel: VoiceBasedChannel | null | undefined, leavingUserId?: string) {
+    if (!channel) return;
+    const membersList = Array.from(channel.members?.values?.() ?? []);
+    const remainingHumans = membersList.filter(
+      (m) => !m.user?.bot && (!leavingUserId || m.id !== leavingUserId)
+    );
+    if (remainingHumans.length === 0) {
+      const connection = getVoiceConnection(channel.guild.id);
+      if (connection && connection.joinConfig.channelId === channel.id) {
+        try {
+          connection.destroy();
+        } catch (err) {
+          console.error('[Voice] Failed to destroy connection on empty channel:', err);
+        }
+      }
+    }
+  }
+
   public static async handleVoiceStateUpdate(oldState: VoiceState, newState: VoiceState, observedAt = new Date()) {
     const userId = newState.id || oldState.id;
     const guildId = newState.guild.id || oldState.guild.id;
     if (newState.member?.user.bot || oldState.member?.user.bot) return;
     if (oldState.channelId === newState.channelId) return;
+
+    if (oldState.channelId) {
+      const oldChannel = oldState.channel ?? (oldState.channelId ? oldState.guild.channels?.cache?.get(oldState.channelId) : null);
+      if (oldChannel) {
+        VoiceService.checkAndLeaveIfEmpty(oldChannel as any, userId);
+      }
+    }
+
     const key = `${guildId}:${userId}`;
     const events = pendingVoiceEvents.get(key) ?? [];
     events.push({
@@ -159,25 +200,86 @@ export class VoiceService {
       const connection = joinVoiceChannel({
         channelId: state.channel.id,
         guildId: state.guild.id,
-        adapterCreator: state.guild.voiceAdapterCreator as any
+        adapterCreator: state.guild.voiceAdapterCreator as any,
+        selfDeaf: false,
+        selfMute: false
       });
-      const player = createAudioPlayer();
+
+      try {
+        await entersState(connection, VoiceConnectionStatus.Ready, 15_000);
+      } catch (err) {
+        console.error('[Voice] Voice connection timed out waiting for Ready:', err);
+        try {
+          connection.destroy();
+        } catch {}
+        return;
+      }
+
+      const membersList = Array.from(state.channel.members?.values?.() ?? []);
+      const humanMembers = membersList.filter((m) => !m.user?.bot);
+      if (humanMembers.length === 0) {
+        try {
+          connection.destroy();
+        } catch {}
+        return;
+      }
+
+      const player = createAudioPlayer({
+        behaviors: {
+          noSubscriber: NoSubscriberBehavior.Play
+        }
+      });
       const stream = getVietnameseTtsStream(message);
-      const resource = createAudioResource(stream);
-      player.play(resource);
-      connection.subscribe(player);
-      player.on(AudioPlayerStatus.Idle, () => {
-        player.stop();
-        connection.destroy();
+      const resource = createAudioResource(stream, {
+        inputType: StreamType.Arbitrary
       });
+
+      connection.subscribe(player);
+      player.play(resource);
+
+      let cleanedUp = false;
+      const cleanup = () => {
+        if (cleanedUp) return;
+        cleanedUp = true;
+        clearTimeout(safetyTimer);
+        try {
+          player.stop();
+        } catch {}
+        try {
+          connection.destroy();
+        } catch {}
+      };
+
+      const safetyTimer = setTimeout(() => {
+        cleanup();
+      }, 30_000);
+      if (typeof safetyTimer.unref === 'function') {
+        safetyTimer.unref();
+      }
+
+      player.on(AudioPlayerStatus.Idle, () => {
+        cleanup();
+      });
+
       player.on('error', (err) => {
         console.error('[Voice] Audio player error:', err);
-        connection.destroy();
+        cleanup();
       });
+
       if (typeof (connection as any).on === 'function') {
         (connection as any).on('error', (err: any) => {
           console.error('[Voice] Voice connection error:', err);
-          connection.destroy();
+          cleanup();
+        });
+        (connection as any).on(VoiceConnectionStatus.Disconnected, async () => {
+          try {
+            await Promise.race([
+              entersState(connection, VoiceConnectionStatus.Signalling, 5_000),
+              entersState(connection, VoiceConnectionStatus.Connecting, 5_000)
+            ]);
+          } catch {
+            cleanup();
+          }
         });
       }
     } catch (err) {

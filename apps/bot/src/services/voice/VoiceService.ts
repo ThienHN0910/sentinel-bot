@@ -215,6 +215,14 @@ export class VoiceService {
         });
       }
 
+      if (typeof (connection as any).onNetworkingClose === 'function') {
+        const origOnNetworkingClose = (connection as any).onNetworkingClose.bind(connection);
+        (connection as any).onNetworkingClose = (code: number) => {
+          console.log(`[Voice Close Code] Networking closed with code: ${code}`);
+          return origOnNetworkingClose(code);
+        };
+      }
+
       try {
         await entersState(connection, VoiceConnectionStatus.Ready, 15_000);
       } catch (err) {

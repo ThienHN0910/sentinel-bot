@@ -67,6 +67,8 @@ export interface IGuildConfig {
   reportChannelId?: string;
   confessionChannelId?: string;
   qotdChannelId?: string;
+  ttsVoiceStyle?: string;
+  greetingMode?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -83,12 +85,16 @@ export interface GuildSettingsInput {
   welcomeVoiceTts?: boolean;
   welcomeMessage?: string;
   reportChannelId?: string | null;
+  ttsVoiceStyle?: string;
+  greetingMode?: string;
 }
 
 export interface GuildSettingsResponse {
   welcomeVoiceTts: boolean;
   welcomeMessage: string;
   reportChannelId: string | null;
+  ttsVoiceStyle?: string;
+  greetingMode?: string;
   channels: { id: string; name: string }[];
 }
 

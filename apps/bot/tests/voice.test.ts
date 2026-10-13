@@ -67,6 +67,14 @@ describe('Voice Rewards Math', () => {
 });
 
 describe('getVietnameseTtsStream', () => {
+  beforeEach(() => {
+    process.env.TTS_PROVIDER = 'google';
+  });
+
+  afterEach(() => {
+    delete process.env.TTS_PROVIDER;
+  });
+
   it('streams audio chunks from Google TTS URL', async () => {
     const fakeIncoming = new PassThrough();
     const httpsGetSpy = vi.spyOn(https, 'get').mockImplementation((url: any, cb: any) => {
@@ -206,6 +214,23 @@ describe('VoiceService.handleVoiceStateUpdate', () => {
     } } as any;
     await VoiceService.handleVoiceStateUpdate(oldState, newState);
     expect(playGreetingSpy).toHaveBeenCalledWith(newState, 'Chào mừng Lan đã tham gia phòng thoại!');
+  });
+
+  it('generates dynamic anime/e-girl pool greeting when greetingMode is pool', async () => {
+    const playGreetingSpy = vi.spyOn(VoiceService, 'playGreeting').mockResolvedValue(undefined as any);
+    vi.spyOn(GuildConfigModel, 'findOne').mockResolvedValue({
+      welcomeVoiceTts: true,
+      greetingMode: 'pool',
+      welcomeMessage: 'Chào mừng {user} đã tham gia phòng thoại!'
+    } as any);
+    const oldState = { channelId: null, id: 'user-egirl', guild: { id: 'g-1' } } as any;
+    const newState = { channelId: 'vc-100', id: 'user-egirl', guild: { id: 'g-1' }, member: {
+      displayName: 'Asuka', user: { bot: false }
+    } } as any;
+    await VoiceService.handleVoiceStateUpdate(oldState, newState);
+    expect(playGreetingSpy).toHaveBeenCalled();
+    const playedText = playGreetingSpy.mock.calls[0][1];
+    expect(playedText).toContain('Asuka');
   });
 
   it('delegates a leave to durable session settlement with user identity', async () => {

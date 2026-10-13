@@ -16,6 +16,7 @@ import { UserStatModel } from '../../models/UserStat';
 import { VoiceSessionModel } from '../../models/VoiceSession';
 import { GuildConfigModel } from '../../models/GuildConfig';
 import { getVietnameseTtsStream } from './ttsStream';
+import { generateGreeting } from './greetingService';
 import { recordActivity } from '../analytics/activity';
 import { DEFAULT_GREETING } from '../settings/GuildSettingsService';
 
@@ -82,9 +83,20 @@ async function flushVoiceEventsForKey(guildId: string, userId: string): Promise<
           await recordActivity(guildId, 'voiceJoins', event.observedAt);
           const config = await GuildConfigModel.findOne({ guildId });
           if (config?.welcomeVoiceTts ?? true) {
-            const welcomeText = (config?.welcomeMessage || DEFAULT_GREETING).replace(
-              '{user}', event.state.member?.displayName || 'thành viên'
-            );
+            const displayName = event.state.member?.displayName || 'thành viên';
+            const hasCustomMessage = Boolean(config?.welcomeMessage && config.welcomeMessage !== DEFAULT_GREETING);
+            const usePool = config?.greetingMode === 'pool' || (process.env.GREETING_MODE === 'pool' && !hasCustomMessage);
+
+            let welcomeText: string;
+            if (usePool) {
+              welcomeText = generateGreeting({
+                displayName,
+                mode: 'pool',
+                date: event.observedAt
+              });
+            } else {
+              welcomeText = (config?.welcomeMessage || DEFAULT_GREETING).replace('{user}', displayName);
+            }
             void VoiceService.playGreeting(event.state, welcomeText).catch(console.error);
           }
         } catch (error) {

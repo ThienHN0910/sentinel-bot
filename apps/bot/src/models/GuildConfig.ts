@@ -11,6 +11,8 @@ const GuildConfigSchema = new Schema<GuildConfigDocument>({
   reportChannelId: { type: String },
   confessionChannelId: { type: String, default: null },
   qotdChannelId: { type: String, default: null },
+  ttsVoiceStyle: { type: String, default: 'egirl' },
+  greetingMode: { type: String, default: 'pool' },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });

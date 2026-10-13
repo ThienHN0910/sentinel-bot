@@ -24,3 +24,8 @@ Hệ thống tài liệu domain context dùng chung cho toàn bộ dự án Sent
 - **Pet (Thú cưng ảo)**: Thú nuôi ảo gắn liền với từng thành viên. Tuân thủ nguyên tắc **Zero-Death**: Thú cưng không bao giờ chết, chỉ thay đổi tâm trạng (Vui vẻ, Đói, Buồn) dựa trên việc cho ăn (`/pet feed`) hàng ngày. Cho phép tương tác chơi đùa (`/pet play`) để nhận quà ngẫu nhiên.
 - **Badge (Huy hiệu)**: Danh hiệu tự động mở khóa khi người dùng đạt các cột mốc hoạt động (Milestones) về tin nhắn, voice, streak, rep, gacha. Người dùng có thể chọn trang bị 1 huy hiệu đại diện trên hồ sơ cá nhân.
 - **Profile**: Thẻ căn cước tổng hợp của thành viên, kết hợp toàn bộ thông tin về Level, DNE Coins, Rep, Pet, Badge và các chỉ số hoạt động.
+
+### D. Trải nghiệm Giọng nói & Nhân cách Thoại (Voice Engagement & Persona)
+- **TTS Provider Adapter**: Hệ thống chuyển đổi văn bản thành giọng nói đa tầng. Hỗ trợ Edge TTS (`vi-VN-HoaiMyNeural` tinh chỉnh pitch/rate) chạy mặc định không cần API key; tích hợp sẵn ElevenLabs cho chất giọng anime/e-girl chuyên sâu khi cấu hình API key; và Google TTS làm lớp fallback dự phòng.
+- **Anime / E-girl Greeting Engine**: Bộ máy tạo lời chào thông minh cho thành viên khi tham gia voice channel. Tự động xáo trộn và biến đổi câu thoại ngẫu nhiên theo khung giờ (sáng, trưa, tối, khuya) với các sắc thái phong cách anime/e-girl (cute, tsundere, playful) kèm cơ chế tùy biến theo từng Guild.
+

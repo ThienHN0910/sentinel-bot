@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "build": "pnpm -r run build",
+    "build:bot": "pnpm --filter @sentinel/shared build && pnpm --filter @sentinel/bot build",
+    "build:web": "pnpm --filter @sentinel/shared build && pnpm --filter @sentinel/web build",
     "test": "pnpm -r run test",
     "typecheck": "pnpm -r run typecheck"
   },

@@ -29,3 +29,22 @@ Hệ thống tài liệu domain context dùng chung cho toàn bộ dự án Sent
 - **TTS Provider Adapter**: Hệ thống chuyển đổi văn bản thành giọng nói đa tầng. Hỗ trợ Edge TTS (`vi-VN-HoaiMyNeural` tinh chỉnh pitch/rate) chạy mặc định không cần API key; tích hợp sẵn ElevenLabs cho chất giọng anime/e-girl chuyên sâu khi cấu hình API key; và Google TTS làm lớp fallback dự phòng.
 - **Anime / E-girl Greeting Engine**: Bộ máy tạo lời chào thông minh cho thành viên khi tham gia voice channel. Tự động xáo trộn và biến đổi câu thoại ngẫu nhiên theo khung giờ (sáng, trưa, tối, khuya) với các sắc thái phong cách anime/e-girl (cute, tsundere, playful) kèm cơ chế tùy biến theo từng Guild.
 
+---
+
+## 2. Kiến trúc & Hạ tầng Triển khai (Infrastructure & Deployment Architecture)
+
+### A. Bot & API Backend (`apps/bot`)
+- **Môi trường**: Chạy trên **Oracle Cloud VPS** (Ubuntu 22.04, 1 OCPU, 1 GB RAM).
+- **Quản lý tiến trình**: Được điều khiển bởi **PM2** (`ecosystem.config.js`, với giới hạn RAM `--max-old-space-size=400`).
+- **Mạng & Reverse Proxy**: Cổng nội bộ `3005` (Fastify API & WebSocket) được Nginx proxy qua tên miền `sentinel-bot.thienhn.io.vn` (SSL quản lý qua Cloudflare Origin Certificate).
+- **Quy trình Build VPS**: VPS chỉ chạy duy nhất Bot và API backend. Để bảo vệ tài nguyên RAM/CPU hạn chế của VPS, chỉ build `@sentinel/shared` và `@sentinel/bot` thông qua `pnpm build:bot`. **Tuyệt đối không build `apps/web` trên VPS**.
+
+### B. Web Dashboard (`apps/web`)
+- **Môi trường**: Được build và deploy hoàn toàn độc lập trên **Vercel** (`https://sentinel-dashboard.thienhn.io.vn`).
+- **Giao tiếp**: Giao diện người dùng gọi API và WebSocket trực tiếp tới backend tại `https://sentinel-bot.thienhn.io.vn` và `wss://sentinel-bot.thienhn.io.vn`.
+
+### C. Cơ sở dữ liệu & Tích hợp bên ngoài
+- **MongoDB Atlas**: Cụm cơ sở dữ liệu cloud chính lưu trữ trạng thái người dùng, session, và cài đặt server.
+- **Discord Gateway / Voice**: Bot duy trì kết nối WebSocket Gateway và kết nối voice UDP thời gian thực.
+
+
